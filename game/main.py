@@ -28,7 +28,7 @@ class Rectangle:
         pygame.draw.rect(screen, self.color, rect)
         pygame.draw.rect(screen, self.border_color, rect, self.border_width)
 
-    def contains_rec(self, other):
+    def contains_rect(self, other):
         return (
             other.x >= self.x and
             other.y >= self.y and
@@ -74,13 +74,13 @@ def main():
         if dx != 0:
             future_pos = Rectangle(player.x + dx, player.y, player.width, player.height, player.color)
             for rec in rectangles:
-                if rec.contains_rec(future_pos):
+                if rec.contains_rect(future_pos):
                     player.x += dx
 
         if dy != 0:
             future_pos = Rectangle(player.x, player.y + dy, player.width, player.height, player.color)
             for rec in rectangles:
-                if rec.contains_rec(future_pos):
+                if rec.contains_rect(future_pos):
                     player.y += dy
 
         pygame.display.flip()
