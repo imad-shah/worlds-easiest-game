@@ -15,14 +15,26 @@ WHITE = '#FFFFFF'
 
 class Rectangle:
     def __init__(self, x: int, y: int, width: int, height: int, color: str, border_color=BLACK, border_width=6):
-        self.rect = pygame.Rect(x, y, width, height)
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
         self.color = color
         self.border_color = border_color
         self.border_width = border_width
     
     def draw(self, screen):
-        pygame.draw.rect(screen, self.color, self.rect)
-        pygame.draw.rect(screen, self.border_color, self.rect, self.border_width)
+        rect = (self.x, self.y, self.width, self.height)
+        pygame.draw.rect(screen, self.color, rect)
+        pygame.draw.rect(screen, self.border_color, rect, self.border_width)
+
+    def contains_rec(self, other):
+        return (
+            other.x >= self.x and
+            other.y >= self.y and
+            other.x + other.width <= self.x + self.width and
+            other.y + other.height <= self.y + self.height
+        )
 
 
 def main():
@@ -46,17 +58,28 @@ def main():
         for rect in rectangles:
             rect.draw(screen)
         player.draw(screen)
+
+        speed = 2
+        dx = dy = 0
         keys = pygame.key.get_pressed()
         if keys[pygame.K_w]:
-            player.rect.y -= 2
+            dy -= speed
         if keys[pygame.K_s]:
-            player.rect.y += 2
+            dy += speed
         if keys[pygame.K_a]:
-            player.rect.x -= 2
+            dx -= speed
         if keys[pygame.K_d]:
-            player.rect.x += 2
+            dx += speed
 
-        print(pygame.mouse.get_pos())
+        if dx != 0 or dy != 0:
+            future_pos = Rectangle(player.x + dx, player.y + dy, player.width, player.height, player.color)
+
+            for rec in rectangles:
+                if rec.contains_rec(future_pos):
+                    player.x += dx
+                    player.y += dy
+
+
         pygame.display.flip()
         clock.tick(FPS)
 
