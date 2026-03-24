@@ -17,8 +17,9 @@ def main():
     RED = '#ff0000'
     BLACK = '#000000'
     GREEN = '#9ef29b'
+    WHITE = '#FFFFFF'
     FPS = 120
-    player = pygame.Rect(200, 350, 40, 40)
+    player = pygame.Rect(175, 275, 40, 40)
 
     while running:
         for event in pygame.event.get():
@@ -26,11 +27,11 @@ def main():
                 running = False
         
         screen.fill(BACKGROUND)
-        first_rect = pygame.Rect(120, 160, 150, 265)
-        pygame.draw.rect(screen, GREEN, first_rect)
-        pygame.draw.rect(screen, BLACK, first_rect, 6)
 
-        pygame.draw.rect(screen, RED, player)
+        rectangles = [(120, 160, 150, 265, GREEN), (742, 160, 150, 265, GREEN), (315, 198, 385, 187, WHITE)]
+        for x, y, length, width, color in rectangles:
+            pygame.draw.rect(screen, color, pygame.Rect(x,y,length,width))
+            pygame.draw.rect(screen, BLACK, pygame.Rect(x,y,length,width), 6)
 
         # draws the rectangle and colors interior red
         pygame.draw.rect(screen, RED, player)
@@ -50,7 +51,8 @@ def main():
 
         # iteration 1 uses clamp_ip but this wont work because the player needs to be able to leave the starting area
         # instead, need to calculate all pixels and block them except an escape hole
-        player.clamp_ip(first_rect)
+        # player.clamp_ip(first_rect)
+        print(pygame.mouse.get_pos())
         pygame.display.flip()
         clock.tick(FPS)
 
