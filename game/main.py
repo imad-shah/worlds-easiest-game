@@ -71,14 +71,17 @@ def main():
         if keys[pygame.K_d]:
             dx += speed
 
-        if dx != 0 or dy != 0:
-            future_pos = Rectangle(player.x + dx, player.y + dy, player.width, player.height, player.color)
-
+        if dx != 0:
+            future_pos = Rectangle(player.x + dx, player.y, player.width, player.height, player.color)
             for rec in rectangles:
                 if rec.contains_rec(future_pos):
                     player.x += dx
-                    player.y += dy
 
+        if dy != 0:
+            future_pos = Rectangle(player.x, player.y + dy, player.width, player.height, player.color)
+            for rec in rectangles:
+                if rec.contains_rec(future_pos):
+                    player.y += dy
 
         pygame.display.flip()
         clock.tick(FPS)
