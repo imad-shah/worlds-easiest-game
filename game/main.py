@@ -27,8 +27,11 @@ class Rectangle:
         pygame.draw.rect(screen, self.border_color, self.rect, self.border_width)
 
     
-def can_move(future_rect, zones):
-    return any(zone.rect.contains(future_rect) for zone in zones)
+def can_move(future_pos, lines):
+    for line in lines:
+        if future_pos.clipline(line):
+            return False
+    return True
 
 def move_player(player, dx, dy, zones):
     if dx != 0:
@@ -54,9 +57,12 @@ def main():
         Rectangle(120, 160, 150, 265, GREEN), # left green
         Rectangle(742, 160, 150, 265, GREEN), # right green
         Rectangle(315, 205, 385, 187, WHITE), # middle screen
-        Rectangle(230, 367, 160, 51, WHITE, WHITE, 6)
+        Rectangle(230, 367, 160, 51, WHITE, WHITE, 6) # working on connection (left)
     ]
-    
+    lines = [
+        ((195, 606), (500, 606)),  # start point, end point
+    ]
+
     while running:
         coords = []
         for event in pygame.event.get():
@@ -80,12 +86,13 @@ def main():
         if keys[pygame.K_d]:
             dx += PLAYER_SPEED
 
-        move_player(player, dx, dy, zones)
-
+        move_player(player, dx, dy, lines)
 
         screen.fill(BACKGROUND)
         for zone in zones:
             zone.draw(screen)
+        for line in lines:
+            pygame.draw.line(screen, BLACK, line[0], line[1], 4)
         player.draw(screen)
         
 
