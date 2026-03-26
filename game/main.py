@@ -1,5 +1,19 @@
 import pygame
 
+'''
+currently: using the actual borders as the visual borders, which leads 
+to sprite getting stuck on 1 frame edges
+
+instead: 
+
+1) should draw the borders in a discernable color like red,
+2) hide them once complete
+3) then draw the visual borders over the real borders using old method of drawing the square again
+with the dark outline, width ~6
+
+
+'''
+
 # display
 SCREEN_LEN = 1097
 SCREEN_WID = 744
@@ -24,7 +38,7 @@ class Rectangle:
     
     def draw(self, screen):
         pygame.draw.rect(screen, self.color, self.rect)
-        pygame.draw.rect(screen, self.border_color, self.rect, self.border_width)
+        # pygame.draw.rect(screen, self.border_color, self.rect, self.border_width)
 
     
 def can_move(future_pos, lines):
@@ -57,10 +71,23 @@ def main():
         Rectangle(120, 160, 150, 265, GREEN), # left green
         Rectangle(742, 160, 150, 265, GREEN), # right green
         Rectangle(315, 205, 385, 187, WHITE), # middle screen
-        Rectangle(230, 367, 160, 51, WHITE, WHITE, 6) # working on connection (left)
+        Rectangle(271, 367, 120, 51, WHITE, WHITE, 6) # working on connection (left)
     ]
     lines = [
-        ((195, 606), (500, 606)),  # start point, end point
+        # starting square level one
+        ((120, 161), (120, 423)), # left
+        ((119, 161), (270, 161)), # up
+        ((270, 159), (270, 367)), # right
+        ((119, 421), (390, 421)), # bottom
+
+        # connection from start square bottom to middle square bottom
+        ((390, 424), (390, 390)),
+
+        # middle square 
+        ((390, 392), (699, 392)), # bottom
+
+        # connection from starting square right to middle square
+        ((268, 369), (315, 369)),
     ]
 
     while running:
@@ -92,7 +119,7 @@ def main():
         for zone in zones:
             zone.draw(screen)
         for line in lines:
-            pygame.draw.line(screen, BLACK, line[0], line[1], 4)
+            pygame.draw.line(screen, BLACK, line[0], line[1], 6)
         player.draw(screen)
         
 
