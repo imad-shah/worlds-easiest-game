@@ -53,13 +53,20 @@ def main():
     zones = [
         Rectangle(120, 160, 150, 265, GREEN), # left green
         Rectangle(742, 160, 150, 265, GREEN), # right green
-        Rectangle(315, 198, 385, 187, WHITE), # middle screen
+        Rectangle(315, 205, 385, 187, WHITE), # middle screen
+        Rectangle(230, 367, 160, 51, WHITE, WHITE, 6)
     ]
     
     while running:
+        coords = []
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                x, y = pygame.mouse.get_pos()
+                coords.append((x, y))
+                print(coords)
+
         
 
         dx = dy = 0
@@ -80,6 +87,7 @@ def main():
         for zone in zones:
             zone.draw(screen)
         player.draw(screen)
+        
 
         pygame.display.flip()
         clock.tick(FPS)
