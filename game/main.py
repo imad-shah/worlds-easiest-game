@@ -38,7 +38,8 @@ class Rectangle:
     
     def draw(self, screen):
         pygame.draw.rect(screen, self.color, self.rect)
-        # pygame.draw.rect(screen, self.border_color, self.rect, self.border_width)
+        '''commenting out the black borders for now'''
+        pygame.draw.rect(screen, self.border_color, self.rect, self.border_width)
 
     
 def can_move(future_pos, lines):
@@ -47,17 +48,17 @@ def can_move(future_pos, lines):
             return False
     return True
 
-def move_player(player, dx, dy, zones):
+def move_player(player, dx, dy, lines):
     if dx != 0:
         future_pos = player.rect.copy()
         future_pos.x += dx
-        if can_move(future_pos, zones):
+        if can_move(future_pos, lines):
             player.rect.x += dx
 
     if dy != 0:
         future_pos = player.rect.copy()
         future_pos.y += dy
-        if can_move(future_pos, zones):
+        if can_move(future_pos, lines):
             player.rect.y += dy
 
 
@@ -71,23 +72,33 @@ def main():
         Rectangle(120, 160, 150, 265, GREEN), # left green
         Rectangle(742, 160, 150, 265, GREEN), # right green
         Rectangle(315, 205, 385, 187, WHITE), # middle screen
-        Rectangle(271, 367, 120, 51, WHITE, WHITE, 6) # working on connection (left)
+        Rectangle(264, 373, 120, 52, WHITE, WHITE) # working on connection (left)
     ]
-    lines = [
+    game_borders = [
         # starting square level one
-        ((120, 161), (120, 423)), # left
-        ((119, 161), (270, 161)), # up
-        ((270, 159), (270, 367)), # right
-        ((119, 421), (390, 421)), # bottom
+        ((122, 161), (122, 423)), # left
+        ((119, 164), (270, 164)), # up
+        ((270, 159), (270, 370)), # right
+        ((119, 424), (390, 424)), # bottom
 
         # connection from start square bottom to middle square bottom
-        ((390, 424), (390, 390)),
+        ((390, 424), (390, 392)),
 
         # middle square 
         ((390, 392), (699, 392)), # bottom
 
         # connection from starting square right to middle square
-        ((268, 369), (315, 369)),
+        ((269, 375), (315, 375)),
+
+        # left of middle square
+        ((316, 372), (316, 205)),
+        ((316, 205), (694, 205)),
+        ((696, 205), (696, 389)),
+    ]
+    black_lines = [
+        ((262, 421), (381, 421)),
+        ((384, 424), (384, 386)),
+        ((264, 373), (320, 373)),
     ]
 
     while running:
@@ -113,13 +124,15 @@ def main():
         if keys[pygame.K_d]:
             dx += PLAYER_SPEED
 
-        move_player(player, dx, dy, lines)
+        move_player(player, dx, dy, game_borders)
 
         screen.fill(BACKGROUND)
         for zone in zones:
             zone.draw(screen)
-        for line in lines:
+        for line in black_lines:
             pygame.draw.line(screen, BLACK, line[0], line[1], 6)
+        # for line in lines:
+        #     pygame.draw.line(screen, RED, line[0], line[1])
         player.draw(screen)
         
 
