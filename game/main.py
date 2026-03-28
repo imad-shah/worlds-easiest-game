@@ -15,8 +15,8 @@ with the dark outline, width ~6
 '''
 
 # display
-SCREEN_LEN = 1097
-SCREEN_WID = 744
+SCREEN_LEN = 985
+SCREEN_WID = 574
 FPS = 120
 PLAYER_SPEED = 2
 
@@ -39,7 +39,7 @@ class Rectangle:
     def draw(self, screen):
         pygame.draw.rect(screen, self.color, self.rect)
         '''commenting out the black borders for now'''
-        pygame.draw.rect(screen, self.border_color, self.rect, self.border_width)
+        # pygame.draw.rect(screen, self.border_color, self.rect, self.border_width)
 
     
 def can_move(future_pos, lines):
