@@ -1,21 +1,17 @@
 import pygame
 
 '''
-currently: using the actual borders as the visual borders, which leads 
-to sprite getting stuck on 1 frame edges
-
-instead: 
-
-1) should draw the borders in a discernable color like red,
-2) hide them once complete
-3) then draw the visual borders over the real borders using old method of drawing the square again
-with the dark outline, width ~6
-
+1. fix the white lines in the center 
+2. make a separate (pygame.Surface) just for the white path area
+3. draw the checkerboard onto that surface 
+4. inside game loop, blit() that surface onto the screen
+5. then draw borders & player 
 
 '''
 
-# display
-SCREEN_LEN = 985
+
+# constants
+SCREEN_LEN = 981
 SCREEN_WID = 574
 FPS = 120
 PLAYER_SPEED = 2
@@ -27,21 +23,6 @@ BLACK = '#000000'
 GREEN = '#9ef29b'
 WHITE = '#FFFFFF'
 
-
-class Rectangle:
-    def __init__(self, x: int, y: int, width: int, height: int, color: str, border_color=BLACK, border_width=6):
-        self.rect = pygame.Rect(x, y, width, height)
-        self.color = color
-        self.border_color = border_color
-        self.border_width = border_width
-        
-    
-    def draw(self, screen):
-        pygame.draw.rect(screen, self.color, self.rect)
-        '''commenting out the black borders for now'''
-        # pygame.draw.rect(screen, self.border_color, self.rect, self.border_width)
-
-    
 def can_move(future_pos, lines):
     for line in lines:
         if future_pos.clipline(line):
@@ -50,68 +31,84 @@ def can_move(future_pos, lines):
 
 def move_player(player, dx, dy, lines):
     if dx != 0:
-        future_pos = player.rect.copy()
+        future_pos = player.copy()
         future_pos.x += dx
         if can_move(future_pos, lines):
-            player.rect.x += dx
+            player.x += dx
 
     if dy != 0:
-        future_pos = player.rect.copy()
+        future_pos = player.copy()
         future_pos.y += dy
         if can_move(future_pos, lines):
-            player.rect.y += dy
+            player.y += dy
+green_rectangles = [
+    # left, top, width, height
+    (119, 163, 119, 245),
+    (734, 162, 125, 245),
+]
+
+white_rectangles = [
+    # left, top, width, height
+    (286, 205, 407, 160),
+]
+
+black_borders = [
+    ((115, 159), (240, 159)),
+    ((117, 158), (117, 407)),
+    ((115, 406), (325, 406)),
+    ((322, 406), (322, 363)),
+    ((322, 365), (698, 365)),
+    ((695, 365), (695, 198)),
+    ((694, 200), (738, 200)), 
+    ((735, 200), (735, 407)),
+    ((733, 406), (863, 406)),
+    ((860, 408), (860, 160)),
+    ((863, 160), (652, 160)),
+    ((654, 159), (654, 200)),
+    ((657, 199), (281, 199)),
+    ((281, 197), (281, 365)),
+    ((284, 366), (240, 366)),
+    ((240, 369), (240, 157)),
+]
+
+red_borders = [
+    ((117, 159), (240, 159)),
+    ((117, 158), (117, 407)),
+    ((117, 406), (323, 406)),
+    ((322, 406), (322, 365)),
+    ((322, 365), (696, 365)),
+    ((695, 365), (695, 202)),
+    ((697, 200), (733, 200)),
+    ((735, 200), (735, 407)),
+    ((735, 406), (861, 406)),
+    ((860, 405), (860, 160)),
+    ((860, 160), (654, 160)),
+    ((654, 159), (654, 200)),
+    ((654, 199), (281, 199)),
+    ((281, 199), (281, 365)),
+    ((281, 366), (240, 366)),
+    ((240, 364), (240, 158)),
+
+]
 
 
 def main():
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_LEN, SCREEN_WID))
     clock = pygame.time.Clock()
+    player = pygame.Rect(166, 271, 29, 29) # Rect(left, top, width, height)
     running = True
-    player = Rectangle(175, 275, 40, 40, RED)
-    zones = [
-        Rectangle(120, 160, 150, 265, GREEN), # left green
-        Rectangle(742, 160, 150, 265, GREEN), # right green
-        Rectangle(315, 205, 385, 187, WHITE), # middle screen
-        Rectangle(264, 373, 120, 52, WHITE, WHITE) # working on connection (left)
-    ]
-    game_borders = [
-        # starting square level one
-        ((122, 161), (122, 423)), # left
-        ((119, 164), (270, 164)), # up
-        ((270, 159), (270, 370)), # right
-        ((119, 424), (390, 424)), # bottom
-
-        # connection from start square bottom to middle square bottom
-        ((390, 424), (390, 392)),
-
-        # middle square 
-        ((390, 392), (699, 392)), # bottom
-
-        # connection from starting square right to middle square
-        ((269, 375), (315, 375)),
-
-        # left of middle square
-        ((316, 372), (316, 205)),
-        ((316, 205), (694, 205)),
-        ((696, 205), (696, 389)),
-    ]
-    black_lines = [
-        ((262, 421), (381, 421)),
-        ((384, 424), (384, 386)),
-        ((264, 373), (320, 373)),
-    ]
+    coords = []
 
     while running:
-        coords = []
+        keys = pygame.key.get_pressed()
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+            if event.type == pygame.QUIT or keys[pygame.K_q]:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
                 x, y = pygame.mouse.get_pos()
                 coords.append((x, y))
                 print(coords)
-
-        
 
         dx = dy = 0
         keys = pygame.key.get_pressed()
@@ -124,22 +121,30 @@ def main():
         if keys[pygame.K_d]:
             dx += PLAYER_SPEED
 
-        move_player(player, dx, dy, game_borders)
+        move_player(player, dx, dy, red_borders)
+
 
         screen.fill(BACKGROUND)
-        for zone in zones:
-            zone.draw(screen)
-        for line in black_lines:
+        for line in green_rectangles:
+            pygame.draw.rect(screen, GREEN, line) 
+        for line in white_rectangles:
+            pygame.draw.rect(screen, WHITE, line) 
+        for line in black_borders:
             pygame.draw.line(screen, BLACK, line[0], line[1], 6)
-        # for line in lines:
+        # see red borders
+        # for line in red_borders:
         #     pygame.draw.line(screen, RED, line[0], line[1])
-        player.draw(screen)
-        
+        pygame.draw.rect(screen, RED, player)
+        pygame.draw.rect(screen, BLACK, player, 5)
+
 
         pygame.display.flip()
         clock.tick(FPS)
 
     pygame.quit()
-    
+
+
 if __name__ == '__main__':
     main()
+
+
