@@ -57,8 +57,8 @@ red_borders = [
     ((117, 406), (323, 406)),
     ((322, 406), (322, 365)),
     ((322, 365), (696, 365)),
-    ((695, 365), (695, 201)),
-    ((694, 200), (736, 200)),
+    ((695, 365), (695, 202)),
+    ((697, 200), (733, 200)),
     ((735, 200), (735, 407)),
     ((735, 406), (861, 406)),
     ((860, 405), (860, 160)),
@@ -106,8 +106,8 @@ def main():
         screen.fill(BACKGROUND)
         for line in black_borders:
             pygame.draw.line(screen, BLACK, line[0], line[1], 6)
-        for line in red_borders:
-            pygame.draw.line(screen, RED, line[0], line[1])
+        # for line in red_borders:
+        #     pygame.draw.line(screen, RED, line[0], line[1])
         pygame.draw.rect(screen, RED, player)
 
         pygame.display.flip()
