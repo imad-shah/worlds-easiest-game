@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # pygame needs no window here, but importing it still probes for a video
+      # driver. The dummy driver keeps every step headless.
+      SDL_VIDEODRIVER: dummy
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Python
+        # Takes the version from .python-version, which matches requires-python.
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Run tests
+        run: uv run pytest
