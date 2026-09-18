@@ -1,0 +1,19 @@
+[project]
+name = "worlds-easiest-game"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "imad-shah", email = "ishah5@student.gsu.edu" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "pygame>=2.6.1",
+]
+
+[project.scripts]
+worlds-easiest-game = "worlds_easiest_game:main"
+
+[build-system]
+requires = ["uv_build>=0.12.15,<0.13.0"]
+build-backend = "uv_build"
