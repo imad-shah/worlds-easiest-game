@@ -25,6 +25,6 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# The game lives in a top-level `game` package that isn't part of the installed
-# distribution, so put the repo root on sys.path for the suite.
-pythonpath = ["."]
+# `python game/main.py` runs with `game/` as sys.path[0]. Point the suite at that
+# same root so tests import `engine` and `levels` exactly as the game does.
+pythonpath = ["game"]
