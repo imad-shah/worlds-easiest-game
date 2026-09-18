@@ -11,9 +11,8 @@ from collections import defaultdict
 import pygame
 import pytest
 
-import engine
-import levels
-from levels import level1
+from worlds_easiest_game import engine, levels
+from worlds_easiest_game.levels import level1
 
 
 # The names the game loop reads out of the level data. Renaming or dropping one

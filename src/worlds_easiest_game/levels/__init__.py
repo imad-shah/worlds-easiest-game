@@ -6,7 +6,7 @@ append it to LEVELS below. Nothing in the engine or in main.py has to change.
 Until level progression exists, only LEVELS[0] is ever played.
 '''
 
-from levels import level1
+from worlds_easiest_game.levels import level1
 
 # In play order.
 LEVELS = [level1]
