@@ -1,7 +1,7 @@
 [project]
 name = "worlds-easiest-game"
 version = "0.1.0"
-description = "deps for running the game"
+description = "A pygame recreation of the game World's Hardest Game"
 readme = "README.md"
 authors = [
     { name = "imad-shah", email = "ishah5@student.gsu.edu" }
