@@ -1,7 +1,7 @@
 [project]
 name = "worlds-easiest-game"
 version = "0.1.0"
-description = "deps for running the game"
+description = "A pygame recreation of the game World's Hardest Game"
 readme = "README.md"
 authors = [
     { name = "imad-shah", email = "ishah5@student.gsu.edu" }
@@ -24,7 +24,6 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
+# The game is imported from the installed `worlds_easiest_game` package, the
+# same way the console script reaches it, so the suite needs no import root.
 testpaths = ["tests"]
-# `python game/main.py` runs with `game/` as sys.path[0]. Point the suite at that
-# same root so tests import `engine` and `levels` exactly as the game does.
-pythonpath = ["game"]

@@ -1,10 +1,10 @@
-import engine
-import levels
+'''Launcher for `uv run python game/main.py`.
 
+The game itself lives in the installable `worlds_easiest_game` package under
+`src/`, so the console script and this launcher run the same code.
+'''
 
-def main():
-    engine.run(levels.current_level())
-
+from worlds_easiest_game import main
 
 if __name__ == '__main__':
     main()
