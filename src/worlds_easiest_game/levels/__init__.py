@@ -2,8 +2,8 @@
 
 To add a level: write `levelN.py` next to this file, giving it the same four
 names level 1 has (PLAYER_SPAWN, PLAYFIELD, PATH_REGIONS, SAFE_REGIONS), then
-append it to LEVELS below. Nothing in the engine or in main.py has to change.
-Until level progression exists, only LEVELS[0] is ever played.
+append it to LEVELS below. Nothing in the engine or in the entry point has to
+change. Until level progression exists, only LEVELS[0] is ever played.
 '''
 
 from worlds_easiest_game.levels import level1

@@ -8,9 +8,10 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   pygame headless; anything needing a real window does not belong in the suite.
   `.github/workflows/ci.yml` runs the same commands on PRs and pushes to `main`.
 - The game lives in the `worlds_easiest_game` package under `src/`, and its modules
-  import each other by that absolute name. Launch it with `uv run worlds-easiest-game`
-  (the console script in `pyproject.toml`); `game/main.py` is a thin launcher that calls
-  the same `main`. Both the script and the suite reach the game as an installed package.
+  import each other by that absolute name. Both entry points, the console script
+  declared in `pyproject.toml` and the `game/main.py` launcher, call the same
+  `worlds_easiest_game.main`; README.md documents how to run them. Entry points and
+  suite alike reach the game as an installed package.
 
 ## Maintaining this file
 
