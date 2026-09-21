@@ -28,7 +28,6 @@ BACKGROUND = '#aaa5ff'
 RED = '#ff0000'
 BLACK = '#000000'
 GREEN = '#9ef29b'
-WHITE = '#FFFFFF'
 BLUE = '#0000FF'
 TILE_LIGHT = '#f7f7ff'  # the two floor tiles, sampled from the original
 TILE_DARK = '#e6e6fd'
