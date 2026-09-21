@@ -17,6 +17,10 @@ OBSTACLE_OUTLINE = 4.5  # of obstacles.RADIUS, measured from the original game
 # and scaled to this canvas. Fractional because it is fitted to level 1's walls, which sit 18
 # tiles apart across the course and 6 tiles apart down it.
 TILE_SIZE = 41.25
+# As in the original, one board is fixed to the canvas for every level: its grid
+# runs through this point (level 1's top-left corner), and the tile below-right
+# of it is light.
+GRID_ORIGIN = (117, 159)
 DEBUG = False  # click anywhere to print coordinates, for laying out new levels
 
 # colors
@@ -54,22 +58,13 @@ def build_walls(polygon, thickness=WALL_THICKNESS):
     return walls
 
 
-def grid_origin(polygon):
-    '''The point the floor grid is anchored to: the course's top-left bounding corner.
+def draw_checkerboard(surface, area):
+    '''Fill `area` with its part of the floor board anchored at GRID_ORIGIN.
 
-    The original lays every wall on its tile grid, so anchoring there lines the
-    tiles up with all of a level's walls without the level saying anything more.
+    Tile edges are rounded from the fractional grid, and the tile at GRID_ORIGIN
+    is light, so every region of every level shares one continuous board.
     '''
-    return min(x for x, _ in polygon), min(y for _, y in polygon)
-
-
-def draw_checkerboard(surface, area, origin, size=TILE_SIZE):
-    '''Fill `area` with alternating tiles from the grid whose corner sits at `origin`.
-
-    Tile edges are rounded from the fractional grid, and the tile at `origin` is
-    light, so every region of a level shares one continuous board.
-    '''
-    ox, oy = origin
+    (ox, oy), size = GRID_ORIGIN, TILE_SIZE
     cols = range(math.floor((area.left - ox) / size), math.ceil((area.right - ox) / size))
     rows = range(math.floor((area.top - oy) / size), math.ceil((area.bottom - oy) / size))
     for col in cols:
@@ -85,9 +80,8 @@ def build_level_surface(level, walls):
     '''Draw the static parts of the level once, so the loop only has to blit it.'''
     surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
     surface.fill(BACKGROUND)
-    origin = grid_origin(level.PLAYFIELD)
     for corners in level.PATH_REGIONS:
-        draw_checkerboard(surface, region_rect(*corners), origin)
+        draw_checkerboard(surface, region_rect(*corners))
     for corners in level.SAFE_REGIONS:
         pygame.draw.rect(surface, GREEN, region_rect(*corners))
     for wall in walls:

@@ -4,6 +4,9 @@ These build the real surface and sample its pixels. The dummy video driver gives
 `convert()` a display to match without opening a window.
 '''
 
+import os
+from types import SimpleNamespace
+
 import pygame
 import pytest
 
@@ -17,16 +20,28 @@ GREEN = pygame.Color(engine.GREEN)
 
 
 @pytest.fixture(scope='module')
-def surface():
+def display():
+    os.environ.setdefault('SDL_VIDEODRIVER', 'dummy')
     pygame.display.init()
     pygame.display.set_mode((1, 1))
-    yield engine.build_level_surface(level1, engine.build_walls(level1.PLAYFIELD))
+    yield
     pygame.display.quit()
 
 
+@pytest.fixture(scope='module')
+def surface(display):
+    return engine.build_level_surface(level1, engine.build_walls(level1.PLAYFIELD))
+
+
+def tile_corner(col, row):
+    '''The top-left pixel of a tile of the floor board.'''
+    ox, oy = engine.GRID_ORIGIN
+    return round(ox + col * engine.TILE_SIZE), round(oy + row * engine.TILE_SIZE)
+
+
 def tile_center(col, row):
-    '''The pixel at the middle of a tile of level 1's grid.'''
-    ox, oy = engine.grid_origin(level1.PLAYFIELD)
+    '''The pixel at the middle of a tile of the floor board.'''
+    ox, oy = engine.GRID_ORIGIN
     return (round(ox + (col + 0.5) * engine.TILE_SIZE),
             round(oy + (row + 0.5) * engine.TILE_SIZE))
 
@@ -58,16 +73,31 @@ def test_safe_regions_stay_solid_green(surface):
                 assert surface.get_at((x, y)) == GREEN, (x, y)
 
 
+def test_board_is_fixed_to_the_canvas_not_to_the_level(display):
+    '''A course that starts on a dark tile of the board keeps it dark.
+
+    Level 3 of the original sits 7 tiles right of level 1, so its top-left tile is dark.
+    '''
+    (left, top), (right, bottom) = tile_corner(7, 0), tile_corner(9, 2)
+    level = SimpleNamespace(
+        PLAYFIELD=[(left, top), (right, top), (right, bottom), (left, bottom)],
+        PATH_REGIONS=[((left, top), (right, bottom))],
+        SAFE_REGIONS=[],
+    )
+    surface = engine.build_level_surface(level, engine.build_walls(level.PLAYFIELD))
+    assert surface.get_at(tile_center(7, 0)) == DARK
+    assert surface.get_at(tile_center(8, 0)) == LIGHT
+
+
 @pytest.mark.parametrize('level', levels.LEVELS, ids=lambda level: level.__name__)
 def test_every_wall_falls_on_a_grid_line(level):
-    '''A level's walls must sit on its floor grid, or tiles get sliced by them.
+    '''A level's walls must sit on the floor board's grid, or tiles get sliced by them.
 
     Walls are hand-placed in whole pixels, so allow a little slack -- anything
     under half a wall thickness is hidden underneath the wall.
     '''
-    origin = engine.grid_origin(level.PLAYFIELD)
     for corner in level.PLAYFIELD:
-        for coord, anchor in zip(corner, origin):
+        for coord, anchor in zip(corner, engine.GRID_ORIGIN):
             offset = (coord - anchor) / engine.TILE_SIZE
             drift = abs(offset - round(offset)) * engine.TILE_SIZE
             assert drift < engine.WALL_THICKNESS / 2, f'{corner} is {drift:.1f}px off the grid'
