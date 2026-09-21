@@ -30,6 +30,11 @@ SAFE_REGIONS = [
     ((735, 160), (860, 406)),  # right room
 ]
 
+# Reaching this safe zone with every coin collected finishes the level.
+GOAL = ((735, 160), (860, 406))  # the right room
+
+COINS = []
+
 # One dot per row of the middle corridor, which is 166px tall between its walls
 # at y=199 and y=365, so each row is a quarter of that. Every dot runs the full
 # corridor, from touching the inside of the wall at x=281 to touching the wall

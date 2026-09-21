@@ -22,6 +22,12 @@ SAFE_REGIONS = [
     ((735, 241), (860, 324)),  # right
 ]
 
+# Reaching this safe zone with every coin collected finishes the level.
+GOAL = ((735, 241), (860, 324))  # the right zone
+
+# Centers of the coins to collect. The one coin sits in the middle of the room.
+COINS = [(488, 283)]
+
 # One dot per tile column of the room, each in the middle of its column. Dots in
 # the even columns start near the top wall and those in the odd columns near the
 # bottom one, and each runs to the same 26px short of the far wall, as in the

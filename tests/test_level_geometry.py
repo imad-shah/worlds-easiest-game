@@ -11,10 +11,12 @@ import pytest
 
 from worlds_easiest_game import engine, levels
 from worlds_easiest_game.levels import level1, level2
+from worlds_easiest_game.obstacles import circle_touches_rect
 
 # The names the game loop reads out of the level data. Renaming or dropping one
 # of these breaks the loop, so pin them here for every registered level.
-LEVEL_NAMES = ('PLAYFIELD', 'PATH_REGIONS', 'SAFE_REGIONS', 'PLAYER_SPAWN', 'OBSTACLES')
+LEVEL_NAMES = ('PLAYFIELD', 'PATH_REGIONS', 'SAFE_REGIONS', 'GOAL', 'PLAYER_SPAWN', 'COINS',
+               'OBSTACLES')
 
 
 @pytest.mark.parametrize('level', levels.LEVELS, ids=lambda level: level.__name__)
@@ -66,6 +68,31 @@ def test_spawn_is_in_the_left_safe_zone(level):
                    key=lambda region: region.left)
     player = pygame.Rect(level.PLAYER_SPAWN, engine.PLAYER_SIZE)
     assert leftmost.contains(player), 'the player does not start in the left safe zone'
+
+
+@pytest.mark.parametrize('level', levels.LEVELS, ids=lambda level: level.__name__)
+def test_goal_is_a_safe_zone_away_from_the_spawn(level):
+    assert level.GOAL in level.SAFE_REGIONS, 'the goal is not one of the safe zones'
+    player = pygame.Rect(level.PLAYER_SPAWN, engine.PLAYER_SIZE)
+    assert not player.colliderect(engine.region_rect(*level.GOAL)), 'the level starts finished'
+
+
+@pytest.mark.parametrize('level', levels.LEVELS, ids=lambda level: level.__name__)
+def test_coins_sit_on_the_floor_clear_of_walls(level):
+    walls = engine.build_walls(level.PLAYFIELD)
+    floor = [engine.region_rect(*corners) for corners in level.PATH_REGIONS + level.SAFE_REGIONS]
+    for coin in level.COINS:
+        assert any(region.collidepoint(coin) for region in floor), f'{coin} is off the course'
+        assert not any(circle_touches_rect(coin, engine.COIN_RADIUS, wall) for wall in walls), (
+            f'{coin} overlaps a wall'
+        )
+
+
+def test_level2_coin_is_in_the_middle_of_the_room():
+    (left, top), (right, bottom) = level2.PATH_REGIONS[0]
+    [coin] = level2.COINS
+    assert coin == pytest.approx(((left + right) / 2, (top + bottom) / 2), abs=1)
+    assert level1.COINS == [], 'level 1 has no coins in the original'
 
 
 def test_level2_dots_each_own_a_column_and_alternate_rows():

@@ -13,6 +13,8 @@ PLAYER_SPEED = 240  # pixels per second
 PLAYER_SIZE = (29, 29)
 WALL_THICKNESS = 6
 OBSTACLE_OUTLINE = 4.5  # of obstacles.RADIUS, measured from the original game
+# Coins are the same size as the dots in the original, and outlined the same way.
+COIN_RADIUS = obstacles.RADIUS
 # The floor tiles, measured off the original's screenshots (about 43.4px there)
 # and scaled to this canvas. Fractional because it is fitted to level 1's walls,
 # which sit 18 tiles apart across the course and 6 tiles apart down it.
@@ -29,6 +31,7 @@ RED = '#ff0000'
 BLACK = '#000000'
 GREEN = '#9ef29b'
 BLUE = '#0000FF'
+YELLOW = '#ffff55'  # sampled from the original's coins
 TILE_LIGHT = '#f7f7ff'  # the two floor tiles, sampled from the original
 TILE_DARK = '#e6e6fd'
 
@@ -124,24 +127,33 @@ def move_player(pos, player, dx, dy, walls):
             pos.y = player.y
 
 
-def build_obstacle_sprite(supersample=4):
-    '''A blue dot with a black outline, drawn once for every obstacle to share.
+def build_dot_sprite(fill, radius, supersample=4):
+    '''A `fill`-colored dot with a black outline, drawn once for every dot to share.
 
     It is drawn `supersample` times too big and shrunk down, which smooths its
     edges; pygame draws small circles straight onto the pixel grid as octagons.
     '''
-    diameter = obstacles.RADIUS * 2
+    diameter = radius * 2
     big = pygame.Surface((diameter * supersample,) * 2, pygame.SRCALPHA)
     center = big.get_rect().center
-    pygame.draw.circle(big, BLACK, center, obstacles.RADIUS * supersample)
-    pygame.draw.circle(big, BLUE, center,
-                       (obstacles.RADIUS - OBSTACLE_OUTLINE) * supersample)
+    pygame.draw.circle(big, BLACK, center, radius * supersample)
+    pygame.draw.circle(big, fill, center, (radius - OBSTACLE_OUTLINE) * supersample)
     return pygame.transform.smoothscale(big, (diameter, diameter)).convert_alpha()
 
 
-def draw_obstacle(surface, sprite, obstacle):
-    '''Blit the obstacle sprite centered on where the obstacle is now.'''
-    x, y = obstacle.center
+def build_obstacle_sprite():
+    '''The blue dot every obstacle is drawn with.'''
+    return build_dot_sprite(BLUE, obstacles.RADIUS)
+
+
+def build_coin_sprite():
+    '''The yellow dot every coin is drawn with.'''
+    return build_dot_sprite(YELLOW, COIN_RADIUS)
+
+
+def draw_centered(surface, sprite, center):
+    '''Blit `sprite` centered on `center`, rounded to the nearest pixel.'''
+    x, y = center
     surface.blit(sprite, sprite.get_rect(center=(round(x), round(y))))
 
 
@@ -161,24 +173,44 @@ def read_input(keys):
     return direction.normalize() * PLAYER_SPEED
 
 
-class Menu:
-    '''The screen the game opens on: a start button, alone in the middle.'''
+class Screen:
+    '''A full-screen card shown outside a level: a title over a row of buttons.
 
-    def __init__(self):
+    `clicked` names the button a left click lands on, so the game decides what
+    each one does.
+    '''
+
+    BUTTON_SIZE = (220, 70)
+    BUTTON_GAP = 40
+
+    def __init__(self, title, labels):
         self.surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.surface.fill(BACKGROUND)
-        self.start_button = pygame.Rect(0, 0, 220, 70)
-        self.start_button.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
-        pygame.draw.rect(self.surface, GREEN, self.start_button)
-        pygame.draw.rect(self.surface, BLACK, self.start_button, WALL_THICKNESS)
-        label = pygame.font.Font(None, 48).render('START', True, BLACK)
-        self.surface.blit(label, label.get_rect(center=self.start_button.center))
+        title = pygame.font.Font(None, 84).render(title, True, BLACK)
+        self.surface.blit(title, title.get_rect(center=(SCREEN_WIDTH // 2, 217)))
+
+        width, height = self.BUTTON_SIZE
+        row = len(labels) * width + (len(labels) - 1) * self.BUTTON_GAP
+        left = (SCREEN_WIDTH - row) // 2
+        font = pygame.font.Font(None, 48)
+        self.buttons = {}
+        for i, label in enumerate(labels):
+            button = pygame.Rect(left + i * (width + self.BUTTON_GAP), 0, width, height)
+            button.centery = 347
+            pygame.draw.rect(self.surface, GREEN, button)
+            pygame.draw.rect(self.surface, BLACK, button, WALL_THICKNESS)
+            text = font.render(label, True, BLACK)
+            self.surface.blit(text, text.get_rect(center=button.center))
+            self.buttons[label] = button
         self.surface = self.surface.convert()
 
-    def starts_game(self, event):
-        '''Whether `event` is a left click on the start button.'''
-        return (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
-                and self.start_button.collidepoint(event.pos))
+    def clicked(self, event):
+        '''The label of the button `event` left-clicks, or None.'''
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            for label, button in self.buttons.items():
+                if button.collidepoint(event.pos):
+                    return label
+        return None
 
     def update(self, dt, keys):
         pass
@@ -188,20 +220,28 @@ class Menu:
 
 
 class Play:
-    '''One level being played: the player, the obstacles, and what they do each frame.'''
+    '''One level being played: the player, the obstacles, the coins, and the goal.
+
+    The level is finished once the player has every coin and any part of them
+    is on the goal's green. Until then the goal is just another safe zone.
+    '''
 
     def __init__(self, level):
         self.level = level
         self.walls = build_walls(level.PLAYFIELD)
+        self.goal = region_rect(*level.GOAL)
         self.level_surface = build_level_surface(level, self.walls)
         self.obstacle_sprite = build_obstacle_sprite()
+        self.coin_sprite = build_coin_sprite()
+        self.finished = False
         self.reset()
 
     def reset(self):
-        '''Put the player back on its spawn and every obstacle back at its start.'''
+        '''Put the player back on its spawn, every obstacle at its start, every coin out.'''
         self.pos = pygame.Vector2(self.level.PLAYER_SPAWN)
         self.player = pygame.Rect(self.level.PLAYER_SPAWN, PLAYER_SIZE)
         self.dots = obstacles.spawn(self.level.OBSTACLES)
+        self.coins = list(self.level.COINS)
 
     def update(self, dt, keys):
         velocity = read_input(keys)
@@ -210,54 +250,79 @@ class Play:
             dot.update(dt)
         if any(dot.touches(self.player) for dot in self.dots):
             self.reset()
+            return
+        self.coins = [coin for coin in self.coins
+                      if not obstacles.circle_touches_rect(coin, COIN_RADIUS, self.player)]
+        if not self.coins and self.player.colliderect(self.goal):
+            self.finished = True
 
     def draw(self, screen):
         screen.blit(self.level_surface, (0, 0))
+        for coin in self.coins:
+            draw_centered(screen, self.coin_sprite, coin)
         pygame.draw.rect(screen, RED, self.player)
         pygame.draw.rect(screen, BLACK, self.player, 5)
         for dot in self.dots:
-            draw_obstacle(screen, self.obstacle_sprite, dot)
+            draw_centered(screen, self.obstacle_sprite, dot.center)
 
 
 class Game:
-    '''The two states the game can be in: the menu it opens on, then the level.
+    '''The states the game can be in: the menu it opens on, each level in turn,
+    and the win screen after the last one.
 
-    Only the current state is updated, so the level stands still, at its start,
-    for however long the menu is up.
+    Only the current state is updated, and each level starts fresh when it is
+    entered, so nothing moves while a screen is up.
     '''
 
-    def __init__(self, level):
-        self.menu = Menu()
-        self.play = Play(level)
+    def __init__(self, levels):
+        self.levels = levels
+        self.menu = Screen("World's Easiest Game", ['START'])  # what the game opens on
+        self.won = Screen('You Won!', ['RESTART', 'QUIT'])  # after the last level
+        self.play = None
         self.state = self.menu
+        self.running = True
+
+    def start_level(self, index):
+        self.level_index = index
+        self.play = Play(self.levels[index])
+        self.state = self.play
 
     def handle(self, event):
-        if self.state is self.menu and self.menu.starts_game(event):
-            self.play.reset()
-            self.state = self.play
+        if self.state is self.menu and self.menu.clicked(event) == 'START':
+            self.start_level(0)
+        elif self.state is self.won:
+            choice = self.won.clicked(event)
+            if choice == 'RESTART':
+                self.start_level(0)
+            elif choice == 'QUIT':
+                self.running = False
 
     def update(self, dt, keys):
         self.state.update(dt, keys)
+        if self.state is self.play and self.play.finished:
+            if self.level_index + 1 < len(self.levels):
+                self.start_level(self.level_index + 1)
+            else:
+                self.state = self.won
 
     def draw(self, screen):
         self.state.draw(screen)
 
 
-def run(level):
-    '''Open the game on its menu; starting from there plays `level`.'''
+def run(levels):
+    '''Open the game on its menu; starting from there plays `levels` in order.'''
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     clock = pygame.time.Clock()
-    game = Game(level)
-    running = True
+    game = Game(levels)
     coords = []
 
-    while running:
+    while game.running:
         dt = clock.tick(FPS) / 1000
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
+                game.running = False
             elif event.type == pygame.MOUSEBUTTONDOWN and DEBUG:
                 coords.append(pygame.mouse.get_pos())
                 print(coords)
@@ -265,7 +330,7 @@ def run(level):
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_q]:
-            running = False
+            game.running = False
 
         game.update(dt, keys)
         game.draw(screen)
