@@ -10,7 +10,7 @@ import pygame
 import pytest
 
 from worlds_easiest_game import engine, levels
-from worlds_easiest_game.levels import level1, level2
+from worlds_easiest_game.levels import level1, level2, level3
 from worlds_easiest_game.obstacles import circle_touches_rect
 
 # The names the game loop reads out of the level data. Renaming or dropping one
@@ -71,10 +71,12 @@ def test_spawn_is_in_the_left_safe_zone(level):
 
 
 @pytest.mark.parametrize('level', levels.LEVELS, ids=lambda level: level.__name__)
-def test_goal_is_a_safe_zone_away_from_the_spawn(level):
+def test_goal_is_a_safe_zone_the_level_cannot_start_finished_on(level):
+    '''A goal the player spawns on only finishes the level once a coin has been fetched.'''
     assert level.GOAL in level.SAFE_REGIONS, 'the goal is not one of the safe zones'
     player = pygame.Rect(level.PLAYER_SPAWN, engine.PLAYER_SIZE)
-    assert not player.colliderect(engine.region_rect(*level.GOAL)), 'the level starts finished'
+    if player.colliderect(engine.region_rect(*level.GOAL)):
+        assert level.COINS, 'the level starts finished'
 
 
 @pytest.mark.parametrize('level', levels.LEVELS, ids=lambda level: level.__name__)
@@ -106,6 +108,40 @@ def test_level2_dots_each_own_a_column_and_alternate_rows():
     assert max(gaps) - min(gaps) <= 1, 'the columns are not evenly spaced'
     for dot in level2.OBSTACLES:
         assert {y for _, y in dot.route} == {top, bottom}, f'{dot} does not cross the room'
+
+
+def test_level3_coin_is_in_the_extra_tile():
+    '''The one coin sits in the middle of the tile above the course's top-left corner.'''
+    (left, top), (right, bottom) = level3.PATH_REGIONS[0]
+    [coin] = level3.COINS
+    assert coin == pytest.approx(((left + right) / 2, (top + bottom) / 2), abs=1)
+
+
+def test_level3_goal_is_the_zone_the_player_starts_in():
+    [zone] = level3.SAFE_REGIONS
+    player = pygame.Rect(level3.PLAYER_SPAWN, engine.PLAYER_SIZE)
+    assert level3.GOAL == zone
+    assert engine.region_rect(*zone).contains(player)
+
+
+def test_level3_ring_turns_clockwise_with_a_one_dot_gap():
+    '''Eleven dots share one route around the safe zone, a tile apart, with one slot empty.'''
+    [route] = {dot.route for dot in level3.OBSTACLES}
+    assert len({dot.speed for dot in level3.OBSTACLES}) == 1, 'the ring does not turn as one'
+    assert len(level3.OBSTACLES) == 11
+    (x0, y0), (x1, y1) = route[0], route[1]
+    assert y0 == y1 and x1 > x0, 'the ring does not start clockwise, rightward along the top'
+    safe = engine.region_rect(*level3.SAFE_REGIONS[0])
+    assert (min(x for x, _ in route) < safe.left and max(x for x, _ in route) > safe.right
+            and min(y for _, y in route) < safe.top and max(y for _, y in route) > safe.bottom), (
+        'the ring does not go around the safe zone'
+    )
+    assert level3.OBSTACLES[0].length / 12 == pytest.approx(engine.TILE_SIZE, abs=1), (
+        'twelve dots spaced a tile apart would not fill the ring'
+    )
+    slots = sorted(dot.start * 12 for dot in level3.OBSTACLES)
+    spacing = [b - a for a, b in zip(slots, slots[1:] + [slots[0] + 12])]
+    assert sorted(spacing) == pytest.approx([1] * 10 + [2]), 'the dots are not a tile apart with one gap'
 
 
 def test_move_player_slides_along_a_wall_instead_of_sticking():
