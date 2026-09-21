@@ -163,16 +163,13 @@ def read_input(keys):
 
 
 class Menu:
-    '''The screen the game opens on: the title and a start button.'''
+    '''The screen the game opens on: a start button, alone in the middle.'''
 
     def __init__(self):
         self.surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.surface.fill(BACKGROUND)
-        title = pygame.font.Font(None, 84).render("World's Easiest Game", True, BLACK)
-        self.surface.blit(title, title.get_rect(center=(SCREEN_WIDTH // 2, 217)))
-
         self.start_button = pygame.Rect(0, 0, 220, 70)
-        self.start_button.center = (SCREEN_WIDTH // 2, 347)
+        self.start_button.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
         pygame.draw.rect(self.surface, GREEN, self.start_button)
         pygame.draw.rect(self.surface, BLACK, self.start_button, WALL_THICKNESS)
         label = pygame.font.Font(None, 48).render('START', True, BLACK)
