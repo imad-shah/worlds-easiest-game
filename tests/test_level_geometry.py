@@ -1,9 +1,7 @@
 '''Tests for the level data and the collision geometry derived from it.
 
 The engine and the level data are imported for their constants and pure helpers
-only -- nothing here opens a window, so the suite runs headless (the workflow
-still pins SDL_VIDEODRIVER=dummy, since importing pygame is enough to want a
-safe default).
+only -- nothing here opens a window or needs a display.
 '''
 
 from collections import defaultdict
