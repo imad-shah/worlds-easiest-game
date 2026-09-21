@@ -8,4 +8,4 @@ from worlds_easiest_game import engine, levels
 
 
 def main() -> None:
-    engine.run(levels.current_level())
+    engine.run(levels.LEVELS)

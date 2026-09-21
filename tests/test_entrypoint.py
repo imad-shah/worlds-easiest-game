@@ -8,11 +8,11 @@ import worlds_easiest_game
 from worlds_easiest_game import engine, levels
 
 
-def test_main_starts_the_current_level(monkeypatch):
+def test_main_plays_every_level(monkeypatch):
     '''The entry point must play the game, not the uv scaffold stub.'''
     played = []
     monkeypatch.setattr(engine, 'run', played.append)
 
     worlds_easiest_game.main()
 
-    assert played == [levels.current_level()]
+    assert played == [levels.LEVELS]
