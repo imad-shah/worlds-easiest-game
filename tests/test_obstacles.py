@@ -3,8 +3,7 @@
 import pygame
 import pytest
 
-from worlds_easiest_game import engine, obstacles
-from worlds_easiest_game.levels import level1
+from worlds_easiest_game import engine, levels, obstacles
 from worlds_easiest_game.obstacles import (
     MovingObstacle,
     circle_touches_rect,
@@ -125,10 +124,11 @@ def test_moving_obstacle_touches_the_player_rect():
     assert dot.touches(player)
 
 
-def test_level1_dots_stay_inside_the_corridor():
+@pytest.mark.parametrize('level', levels.LEVELS, ids=lambda level: level.__name__)
+def test_dots_stay_inside_the_walls(level):
     '''Sampled along each route, no dot ever overlaps a wall of the course.'''
-    walls = engine.build_walls(level1.PLAYFIELD)
-    for declaration in level1.OBSTACLES:
+    walls = engine.build_walls(level.PLAYFIELD)
+    for declaration in level.OBSTACLES:
         dot = MovingObstacle(declaration)
         for _ in range(200):
             dot.update(declaration.length / declaration.speed / 200)
