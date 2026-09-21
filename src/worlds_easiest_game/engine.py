@@ -1,11 +1,8 @@
+import math
+
 import pygame
 
 from worlds_easiest_game import obstacles
-
-'''
-TODO:
-1. draw the checkerboard onto LEVEL_SURFACE (it is already pre-rendered once)
-'''
 
 
 # constants
@@ -16,6 +13,10 @@ PLAYER_SPEED = 240  # pixels per second
 PLAYER_SIZE = (29, 29)
 WALL_THICKNESS = 6
 OBSTACLE_OUTLINE = 4.5  # of obstacles.RADIUS, measured from the original game
+# The floor tiles, measured off the original's screenshots (about 43.4px there)
+# and scaled to this canvas. Fractional because it is fitted to level 1's walls, which sit 18
+# tiles apart across the course and 6 tiles apart down it.
+TILE_SIZE = 41.25
 DEBUG = False  # click anywhere to print coordinates, for laying out new levels
 
 # colors
@@ -25,6 +26,8 @@ BLACK = '#000000'
 GREEN = '#9ef29b'
 WHITE = '#FFFFFF'
 BLUE = '#0000FF'
+TILE_LIGHT = '#f7f7ff'  # the two floor tiles, sampled from the original
+TILE_DARK = '#e6e6fd'
 
 
 def region_rect(topleft, bottomright):
@@ -51,12 +54,40 @@ def build_walls(polygon, thickness=WALL_THICKNESS):
     return walls
 
 
+def grid_origin(polygon):
+    '''The point the floor grid is anchored to: the course's top-left bounding corner.
+
+    The original lays every wall on its tile grid, so anchoring there lines the
+    tiles up with all of a level's walls without the level saying anything more.
+    '''
+    return min(x for x, _ in polygon), min(y for _, y in polygon)
+
+
+def draw_checkerboard(surface, area, origin, size=TILE_SIZE):
+    '''Fill `area` with alternating tiles from the grid whose corner sits at `origin`.
+
+    Tile edges are rounded from the fractional grid, and the tile at `origin` is
+    light, so every region of a level shares one continuous board.
+    '''
+    ox, oy = origin
+    cols = range(math.floor((area.left - ox) / size), math.ceil((area.right - ox) / size))
+    rows = range(math.floor((area.top - oy) / size), math.ceil((area.bottom - oy) / size))
+    for col in cols:
+        left, right = round(ox + col * size), round(ox + (col + 1) * size)
+        for row in rows:
+            top, bottom = round(oy + row * size), round(oy + (row + 1) * size)
+            color = TILE_LIGHT if (col + row) % 2 == 0 else TILE_DARK
+            tile = pygame.Rect(left, top, right - left, bottom - top)
+            pygame.draw.rect(surface, color, tile.clip(area))
+
+
 def build_level_surface(level, walls):
     '''Draw the static parts of the level once, so the loop only has to blit it.'''
     surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
     surface.fill(BACKGROUND)
+    origin = grid_origin(level.PLAYFIELD)
     for corners in level.PATH_REGIONS:
-        pygame.draw.rect(surface, WHITE, region_rect(*corners))
+        draw_checkerboard(surface, region_rect(*corners), origin)
     for corners in level.SAFE_REGIONS:
         pygame.draw.rect(surface, GREEN, region_rect(*corners))
     for wall in walls:
