@@ -14,8 +14,8 @@ PLAYER_SIZE = (29, 29)
 WALL_THICKNESS = 6
 OBSTACLE_OUTLINE = 4.5  # of obstacles.RADIUS, measured from the original game
 # The floor tiles, measured off the original's screenshots (about 43.4px there)
-# and scaled to this canvas. Fractional because it is fitted to level 1's walls, which sit 18
-# tiles apart across the course and 6 tiles apart down it.
+# and scaled to this canvas. Fractional because it is fitted to level 1's walls,
+# which sit 18 tiles apart across the course and 6 tiles apart down it.
 TILE_SIZE = 41.25
 # As in the original, one board is fixed to the canvas for every level: its grid
 # runs through this point (level 1's top-left corner), and the tile below-right
