@@ -146,18 +146,6 @@ def draw_obstacle(surface, sprite, obstacle):
     surface.blit(sprite, sprite.get_rect(center=(round(x), round(y))))
 
 
-def build_contact_notice():
-    '''The notice shown in the top right while the player touches an obstacle.
-
-    A stand-in so contact can be seen working, until touching one resets the level.
-    '''
-    text = pygame.font.Font(None, 26).render('In contact with an obstacle', True, WHITE)
-    notice = pygame.Surface((text.get_width() + 20, text.get_height() + 12))
-    notice.fill(BLACK)
-    notice.blit(text, (10, 6))
-    return notice
-
-
 def read_input(keys):
     '''Return a velocity vector of length PLAYER_SPEED, so diagonals aren't faster.'''
     direction = pygame.Vector2(0, 0)
@@ -174,20 +162,97 @@ def read_input(keys):
     return direction.normalize() * PLAYER_SPEED
 
 
+class Menu:
+    '''The screen the game opens on: the title and a start button.'''
+
+    def __init__(self):
+        self.surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.surface.fill(BACKGROUND)
+        title = pygame.font.Font(None, 84).render("World's Easiest Game", True, BLACK)
+        self.surface.blit(title, title.get_rect(center=(SCREEN_WIDTH // 2, 217)))
+
+        self.start_button = pygame.Rect(0, 0, 220, 70)
+        self.start_button.center = (SCREEN_WIDTH // 2, 347)
+        pygame.draw.rect(self.surface, GREEN, self.start_button)
+        pygame.draw.rect(self.surface, BLACK, self.start_button, WALL_THICKNESS)
+        label = pygame.font.Font(None, 48).render('START', True, BLACK)
+        self.surface.blit(label, label.get_rect(center=self.start_button.center))
+        self.surface = self.surface.convert()
+
+    def starts_game(self, event):
+        '''Whether `event` is a left click on the start button.'''
+        return (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
+                and self.start_button.collidepoint(event.pos))
+
+    def update(self, dt, keys):
+        pass
+
+    def draw(self, screen):
+        screen.blit(self.surface, (0, 0))
+
+
+class Play:
+    '''One level being played: the player, the obstacles, and what they do each frame.'''
+
+    def __init__(self, level):
+        self.level = level
+        self.walls = build_walls(level.PLAYFIELD)
+        self.level_surface = build_level_surface(level, self.walls)
+        self.obstacle_sprite = build_obstacle_sprite()
+        self.reset()
+
+    def reset(self):
+        '''Put the player back on its spawn and every obstacle back at its start.'''
+        self.pos = pygame.Vector2(self.level.PLAYER_SPAWN)
+        self.player = pygame.Rect(self.level.PLAYER_SPAWN, PLAYER_SIZE)
+        self.dots = obstacles.spawn(self.level.OBSTACLES)
+
+    def update(self, dt, keys):
+        velocity = read_input(keys)
+        move_player(self.pos, self.player, velocity.x * dt, velocity.y * dt, self.walls)
+        for dot in self.dots:
+            dot.update(dt)
+        if any(dot.touches(self.player) for dot in self.dots):
+            self.reset()
+
+    def draw(self, screen):
+        screen.blit(self.level_surface, (0, 0))
+        pygame.draw.rect(screen, RED, self.player)
+        pygame.draw.rect(screen, BLACK, self.player, 5)
+        for dot in self.dots:
+            draw_obstacle(screen, self.obstacle_sprite, dot)
+
+
+class Game:
+    '''The two states the game can be in: the menu it opens on, then the level.
+
+    Only the current state is updated, so the level stands still, at its start,
+    for however long the menu is up.
+    '''
+
+    def __init__(self, level):
+        self.menu = Menu()
+        self.play = Play(level)
+        self.state = self.menu
+
+    def handle(self, event):
+        if self.state is self.menu and self.menu.starts_game(event):
+            self.play.reset()
+            self.state = self.play
+
+    def update(self, dt, keys):
+        self.state.update(dt, keys)
+
+    def draw(self, screen):
+        self.state.draw(screen)
+
+
 def run(level):
-    '''Play one level: everything here is the same whichever level is handed in.'''
+    '''Open the game on its menu; starting from there plays `level`.'''
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     clock = pygame.time.Clock()
-    walls = build_walls(level.PLAYFIELD)
-    level_surface = build_level_surface(level, walls)
-    obstacle_sprite = build_obstacle_sprite()
-    contact_notice = build_contact_notice()
-    contact_notice_pos = contact_notice.get_rect(topright=(SCREEN_WIDTH - 10, 10))
-    dots = obstacles.spawn(level.OBSTACLES)
-
-    pos = pygame.Vector2(level.PLAYER_SPAWN)
-    player = pygame.Rect(level.PLAYER_SPAWN, PLAYER_SIZE)
+    game = Game(level)
     running = True
     coords = []
 
@@ -200,24 +265,14 @@ def run(level):
             elif event.type == pygame.MOUSEBUTTONDOWN and DEBUG:
                 coords.append(pygame.mouse.get_pos())
                 print(coords)
+            game.handle(event)
 
         keys = pygame.key.get_pressed()
         if keys[pygame.K_q]:
             running = False
 
-        velocity = read_input(keys)
-        move_player(pos, player, velocity.x * dt, velocity.y * dt, walls)
-        for dot in dots:
-            dot.update(dt)
-
-        screen.blit(level_surface, (0, 0))
-        pygame.draw.rect(screen, RED, player)
-        pygame.draw.rect(screen, BLACK, player, 5)
-        for dot in dots:
-            draw_obstacle(screen, obstacle_sprite, dot)
-        if any(dot.touches(player) for dot in dots):
-            screen.blit(contact_notice, contact_notice_pos)
-
+        game.update(dt, keys)
+        game.draw(screen)
         pygame.display.flip()
 
     pygame.quit()
