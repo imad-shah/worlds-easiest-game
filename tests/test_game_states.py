@@ -51,6 +51,19 @@ def test_game_opens_on_the_menu(game):
     assert game.state is game.menu
 
 
+def test_the_menu_shows_only_a_centered_start_button(game):
+    screen = pygame.Surface((engine.SCREEN_WIDTH, engine.SCREEN_HEIGHT))
+    game.draw(screen)
+    button = game.menu.start_button
+    assert button.center == screen.get_rect().center
+
+    screen.fill(engine.BACKGROUND, button)
+    blank = pygame.Surface(screen.get_size())
+    blank.fill(engine.BACKGROUND)
+    assert pygame.image.tobytes(screen, 'RGB') == pygame.image.tobytes(blank, 'RGB'), \
+        'something besides the start button is drawn on the menu'
+
+
 def test_clicking_start_enters_the_level(game):
     game.handle(click(game.menu.start_button.center))
     assert game.state is game.play
