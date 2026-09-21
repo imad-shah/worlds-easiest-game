@@ -7,9 +7,12 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - Run the tests with `SDL_VIDEODRIVER=dummy uv run pytest`. The dummy driver keeps
   pygame headless; anything needing a real window does not belong in the suite.
   `.github/workflows/ci.yml` runs the same commands on PRs and pushes to `main`.
-- Automated tests cover static facts and pure helpers only. Gameplay (moving the player,
-  collisions and resets, coins, goals, moving between levels, clicking through screens)
-  is tested by hand by the maintainer, so do not add automated tests that simulate playing.
+- Automated tests that play the game must play it perfectly: a route planned against
+  the level's own obstacle data and replayed through the real `Game` without touching a
+  dot, as `tests/test_perfect_run.py` does. Crude scripted play (fixed key sequences that
+  walk into walls or dots) is not wanted. All other gameplay (collisions and resets,
+  coins, goals, moving between levels, clicking through screens) is playtested by hand
+  by the maintainer; beyond perfect runs, automated tests cover static facts and pure helpers.
 - The game lives in the `worlds_easiest_game` package under `src/`, and its modules
   import each other by that absolute name. Both entry points, the console script
   declared in `pyproject.toml` and the `game/main.py` launcher, call the same
