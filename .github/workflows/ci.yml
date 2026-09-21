@@ -10,8 +10,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      # The level-surface and game-state tests open a pygame display. The dummy
-      # driver gives them one without a window and keeps every step headless.
+      # The level-surface tests open a pygame display. The dummy driver gives
+      # them one without a window and keeps every step headless.
       SDL_VIDEODRIVER: dummy
     steps:
       - uses: actions/checkout@v5
