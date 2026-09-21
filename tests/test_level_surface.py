@@ -11,7 +11,7 @@ import pygame
 import pytest
 
 from worlds_easiest_game import engine, levels
-from worlds_easiest_game.levels import level1
+from worlds_easiest_game.levels import level1, level2
 
 
 LIGHT = pygame.Color(engine.TILE_LIGHT)
@@ -28,9 +28,13 @@ def display():
     pygame.display.quit()
 
 
+def build(level):
+    return engine.build_level_surface(level, engine.build_walls(level.PLAYFIELD))
+
+
 @pytest.fixture(scope='module')
 def surface(display):
-    return engine.build_level_surface(level1, engine.build_walls(level1.PLAYFIELD))
+    return build(level1)
 
 
 def tile_corner(col, row):
@@ -64,13 +68,24 @@ def test_passage_tiles_change_color_where_the_corridor_wall_would_be(surface, in
     assert colors == {tuple(LIGHT), tuple(DARK)}
 
 
-def test_safe_regions_stay_solid_green(surface):
+@pytest.mark.parametrize('level', levels.LEVELS, ids=lambda level: level.__name__)
+def test_safe_regions_stay_solid_green(display, level):
+    surface = build(level)
     inset = engine.WALL_THICKNESS
-    for corners in level1.SAFE_REGIONS:
+    for corners in level.SAFE_REGIONS:
         region = engine.region_rect(*corners).inflate(-2 * inset, -2 * inset)
         for x in range(region.left, region.right, 7):
             for y in range(region.top, region.bottom, 7):
                 assert surface.get_at((x, y)) == GREEN, (x, y)
+
+
+def test_level2_room_is_a_twelve_by_six_board_starting_dark(display):
+    '''The room spans tile columns 3-14 and all six rows, its top-left tile dark as in the original.'''
+    surface = build(level2)
+    for col in range(3, 15):
+        for row in range(6):
+            expected = LIGHT if (col + row) % 2 == 0 else DARK
+            assert surface.get_at(tile_center(col, row)) == expected, (col, row)
 
 
 def test_board_is_fixed_to_the_canvas_not_to_the_level(display):

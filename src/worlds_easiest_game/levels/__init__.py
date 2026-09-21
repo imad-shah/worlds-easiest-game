@@ -10,10 +10,10 @@ lands on a grid line. Until level progression exists, only LEVELS[0] is ever
 played.
 '''
 
-from worlds_easiest_game.levels import level1
+from worlds_easiest_game.levels import level1, level2
 
 # In play order.
-LEVELS = [level1]
+LEVELS = [level1, level2]
 
 
 def current_level():
