@@ -14,10 +14,9 @@ import pytest
 from worlds_easiest_game import engine, levels
 from worlds_easiest_game.levels import level1
 
-
 # The names the game loop reads out of the level data. Renaming or dropping one
 # of these breaks the loop, so pin them here for every registered level.
-LEVEL_NAMES = ('PLAYFIELD', 'PATH_REGIONS', 'SAFE_REGIONS', 'PLAYER_SPAWN')
+LEVEL_NAMES = ('PLAYFIELD', 'PATH_REGIONS', 'SAFE_REGIONS', 'PLAYER_SPAWN', 'OBSTACLES')
 
 
 @pytest.mark.parametrize('level', levels.LEVELS, ids=lambda level: level.__name__)
