@@ -1,5 +1,7 @@
 '''Level 1: the course the game has always shipped with.'''
 
+from worlds_easiest_game.obstacles import horizontal
+
 PLAYER_SPAWN = (166, 271)
 
 # The course outline: one closed, axis-aligned polygon walked clockwise from the
@@ -26,4 +28,15 @@ PATH_REGIONS = [
 SAFE_REGIONS = [
     ((117, 159), (240, 406)),  # left room
     ((735, 160), (860, 406)),  # right room
+]
+
+# One dot per row of the middle corridor, which is 166px tall between its walls
+# at y=199 and y=365, so each row is a quarter of that. Every dot runs the full
+# corridor, from touching the inside of the wall at x=281 to touching the wall
+# at x=695. Neighbouring rows start at opposite ends, so they pass each other.
+OBSTACLES = [
+    horizontal(y=220, from_x=295, to_x=681, speed=300),
+    horizontal(y=261, from_x=295, to_x=681, speed=300, start=0.5),
+    horizontal(y=303, from_x=295, to_x=681, speed=300),
+    horizontal(y=344, from_x=295, to_x=681, speed=300, start=0.5),
 ]

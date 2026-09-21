@@ -1,9 +1,10 @@
 import pygame
 
+from worlds_easiest_game import obstacles
+
 '''
 TODO:
 1. draw the checkerboard onto LEVEL_SURFACE (it is already pre-rendered once)
-2. add enemies + the blue dots
 '''
 
 
@@ -14,6 +15,7 @@ FPS = 120
 PLAYER_SPEED = 240  # pixels per second
 PLAYER_SIZE = (29, 29)
 WALL_THICKNESS = 6
+OBSTACLE_OUTLINE = 4.5  # of obstacles.RADIUS, measured from the original game
 DEBUG = False  # click anywhere to print coordinates, for laying out new levels
 
 # colors
@@ -22,6 +24,7 @@ RED = '#ff0000'
 BLACK = '#000000'
 GREEN = '#9ef29b'
 WHITE = '#FFFFFF'
+BLUE = '#0000FF'
 
 
 def region_rect(topleft, bottomright):
@@ -97,6 +100,39 @@ def move_player(pos, player, dx, dy, walls):
             pos.y = player.y
 
 
+def build_obstacle_sprite(supersample=4):
+    '''A blue dot with a black outline, drawn once for every obstacle to share.
+
+    It is drawn `supersample` times too big and shrunk down, which smooths its
+    edges; pygame draws small circles straight onto the pixel grid as octagons.
+    '''
+    diameter = obstacles.RADIUS * 2
+    big = pygame.Surface((diameter * supersample,) * 2, pygame.SRCALPHA)
+    center = big.get_rect().center
+    pygame.draw.circle(big, BLACK, center, obstacles.RADIUS * supersample)
+    pygame.draw.circle(big, BLUE, center,
+                       (obstacles.RADIUS - OBSTACLE_OUTLINE) * supersample)
+    return pygame.transform.smoothscale(big, (diameter, diameter)).convert_alpha()
+
+
+def draw_obstacle(surface, sprite, obstacle):
+    '''Blit the obstacle sprite centered on where the obstacle is now.'''
+    x, y = obstacle.center
+    surface.blit(sprite, sprite.get_rect(center=(round(x), round(y))))
+
+
+def build_contact_notice():
+    '''The notice shown in the top right while the player touches an obstacle.
+
+    A stand-in so contact can be seen working, until touching one resets the level.
+    '''
+    text = pygame.font.Font(None, 26).render('In contact with an obstacle', True, WHITE)
+    notice = pygame.Surface((text.get_width() + 20, text.get_height() + 12))
+    notice.fill(BLACK)
+    notice.blit(text, (10, 6))
+    return notice
+
+
 def read_input(keys):
     '''Return a velocity vector of length PLAYER_SPEED, so diagonals aren't faster.'''
     direction = pygame.Vector2(0, 0)
@@ -120,6 +156,10 @@ def run(level):
     clock = pygame.time.Clock()
     walls = build_walls(level.PLAYFIELD)
     level_surface = build_level_surface(level, walls)
+    obstacle_sprite = build_obstacle_sprite()
+    contact_notice = build_contact_notice()
+    contact_notice_pos = contact_notice.get_rect(topright=(SCREEN_WIDTH - 10, 10))
+    dots = obstacles.spawn(level.OBSTACLES)
 
     pos = pygame.Vector2(level.PLAYER_SPAWN)
     player = pygame.Rect(level.PLAYER_SPAWN, PLAYER_SIZE)
@@ -142,10 +182,16 @@ def run(level):
 
         velocity = read_input(keys)
         move_player(pos, player, velocity.x * dt, velocity.y * dt, walls)
+        for dot in dots:
+            dot.update(dt)
 
         screen.blit(level_surface, (0, 0))
         pygame.draw.rect(screen, RED, player)
         pygame.draw.rect(screen, BLACK, player, 5)
+        for dot in dots:
+            draw_obstacle(screen, obstacle_sprite, dot)
+        if any(dot.touches(player) for dot in dots):
+            screen.blit(contact_notice, contact_notice_pos)
 
         pygame.display.flip()
 
