@@ -31,7 +31,7 @@ def test_coin_text(collected, total, text):
     assert engine.coin_text(collected, total) == text
 
 
-@pytest.mark.parametrize('number, total, text', [(1, 5, '1/5'), (3, 30, '3/30')])
+@pytest.mark.parametrize('number, total, text', [(1, 5, 'LEVEL 1/5'), (3, 30, 'LEVEL 3/30')])
 def test_level_text(number, total, text):
     assert engine.level_text(number, total) == text
 
