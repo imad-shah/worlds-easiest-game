@@ -11,13 +11,13 @@ uv run worlds-easiest-game
 The game opens on a menu; click Start to play the first level. Move with WASD.
 While you play, a black bar across the top of the window shows the coins you
 have on this level out of its total (top left), which level you are on out of
-all of them (top middle, e.g. "LEVEL 3/6"), and how many times you have died
+all of them (top middle), and how many times you have died
 since you pressed Start or Restart (top right).
 Touching a blue dot sends you back to the start, the dots back to theirs, and
 any coins you picked up back to where they were. Collect every yellow coin, then
-reach the level's goal, a green zone (usually the one on the far side, but on
-level 3 the one you start in and on level 5 the one in the middle), to finish
-the level and move on to the next.
+reach the level's goal, a green zone, to finish the level and move on to the next.
+The goal is the starting zone on level 3, the middle zone on level 5, and the
+lower-left zone on level 6.
 After the last level you win: click Restart to play again from level 1, or Quit
 to close the game.
 Press Q or close the window to quit.
