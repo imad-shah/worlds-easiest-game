@@ -9,6 +9,10 @@ uv run worlds-easiest-game
 ```
 
 The game opens on a menu; click Start to play the first level. Move with WASD.
+While you play, a black bar across the top of the window shows the coins you
+have on this level out of its total (top left), which level you are on out of
+all of them (top middle, e.g. "3/5"), and how many times you have died since
+you pressed Start or Restart (top right).
 Touching a blue dot sends you back to the start, the dots back to theirs, and
 any coins you picked up back to where they were. Collect every yellow coin, then
 reach the level's goal, a green zone (usually the one on the far side, but on
@@ -28,6 +32,7 @@ script directly.
 
 Developer-only: launch with `--dev` (`uv run worlds-easiest-game --dev`, or
 `uv run python game/main.py --dev`) to enable god mode. Press T during a level to
-toggle it; while it is on, a "GOD MODE" label shows in the top-left corner and
-touching a blue dot does nothing, so you can reach the end of the game to check it.
+toggle it; while it is on, a "GOD MODE" label shows in the bottom-left corner and
+touching a blue dot does nothing (and is not counted as a death), so you can reach
+the end of the game to check it.
 Without `--dev`, T does nothing.

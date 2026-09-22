@@ -6,8 +6,16 @@ from worlds_easiest_game import obstacles
 
 
 # constants
+# The play area every level is laid out on; level coordinates are relative to it.
 SCREEN_WIDTH = 981
 SCREEN_HEIGHT = 574
+# The black bar across the top of the window, as in the original. It sits above
+# the play area rather than over it, since some courses reach the play area's top.
+BAR_HEIGHT = 40
+BAR_FONT_SIZE = 32
+BAR_MARGIN = 16  # px between the bar's side labels and the window's edges
+WINDOW_HEIGHT = BAR_HEIGHT + SCREEN_HEIGHT
+PLAY_AREA = (0, BAR_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT)  # where the play area sits in the window
 FPS = 120
 PLAYER_SPEED = 240  # pixels per second
 PLAYER_SIZE = (29, 29)
@@ -23,12 +31,13 @@ TILE_SIZE = 41.25
 # runs through this point (level 1's top-left corner), and the tile below-right
 # of it is light.
 GRID_ORIGIN = (117, 159)
-DEBUG = False  # click anywhere to print coordinates, for laying out new levels
+DEBUG = False  # click anywhere to print play-area coordinates, for laying out new levels
 
 # colors
 BACKGROUND = '#aaa5ff'
 RED = '#ff0000'
 BLACK = '#000000'
+WHITE = '#ffffff'
 GREEN = '#9ef29b'
 BLUE = '#0000FF'
 YELLOW = '#ffff55'  # sampled from the original's coins
@@ -173,8 +182,50 @@ def read_input(keys):
     return direction.normalize() * PLAYER_SPEED
 
 
+def coin_text(collected, total):
+    '''The bar's left label: coins collected on the level out of its total.'''
+    return f'COINS: {collected}/{total}'
+
+
+def level_text(number, total):
+    '''The bar's middle label: the current level out of the total, as the original shows it.'''
+    return f'{number}/{total}'
+
+
+def death_text(deaths):
+    '''The bar's right label.'''
+    return f'DEATHS: {deaths}'
+
+
+class TopBar:
+    '''The black bar across the top of the window, with three white labels in it.
+
+    The labels share one font and one baseline; the left one hugs the left edge,
+    the middle one is centered, and the right one hugs the right.
+    '''
+
+    def __init__(self):
+        self.font = pygame.font.Font(None, BAR_FONT_SIZE)
+
+    def draw(self, screen, left, middle, right):
+        screen.fill(BLACK, (0, 0, SCREEN_WIDTH, BAR_HEIGHT))
+        # Every label is set on one baseline, which centers the capitals in the bar
+        # (the labels have no descenders), and is placed by its ink rather than
+        # its glyph boxes, so the margins and the middle come out exact.
+        cap_height = self.font.metrics('H')[0][3]
+        top = (BAR_HEIGHT + cap_height) // 2 - self.font.get_ascent()
+        for text, edge, x in ((left, 'left', BAR_MARGIN),
+                              (middle, 'centerx', SCREEN_WIDTH // 2),
+                              (right, 'right', SCREEN_WIDTH - BAR_MARGIN)):
+            label = self.font.render(text, True, WHITE)
+            ink = label.get_bounding_rect()
+            placed = ink.copy()
+            setattr(placed, edge, x)
+            screen.blit(label, (placed.x - ink.x, top))
+
+
 class Screen:
-    '''A full-screen card shown outside a level: a title over a row of buttons.
+    '''A full-window card shown outside a level: a title over a row of buttons.
 
     `clicked` names the button a left click lands on, so the game decides what
     each one does.
@@ -184,10 +235,11 @@ class Screen:
     BUTTON_GAP = 40
 
     def __init__(self, title, labels):
-        self.surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.surface = pygame.Surface((SCREEN_WIDTH, WINDOW_HEIGHT))
         self.surface.fill(BACKGROUND)
+        middle = WINDOW_HEIGHT // 2
         title = pygame.font.Font(None, 84).render(title, True, BLACK)
-        self.surface.blit(title, title.get_rect(center=(SCREEN_WIDTH // 2, 217)))
+        self.surface.blit(title, title.get_rect(center=(SCREEN_WIDTH // 2, middle - 70)))
 
         width, height = self.BUTTON_SIZE
         row = len(labels) * width + (len(labels) - 1) * self.BUTTON_GAP
@@ -196,7 +248,7 @@ class Screen:
         self.buttons = {}
         for i, label in enumerate(labels):
             button = pygame.Rect(left + i * (width + self.BUTTON_GAP), 0, width, height)
-            button.centery = 347
+            button.centery = middle + 60
             pygame.draw.rect(self.surface, GREEN, button)
             pygame.draw.rect(self.surface, BLACK, button, WALL_THICKNESS)
             text = font.render(label, True, BLACK)
@@ -225,13 +277,16 @@ class Play:
     The level is finished once the player has every coin and any part of them
     is on the goal's green. Until then the goal is just another safe zone.
 
-    With `god_mode` on, touching a dot does nothing; everything else is unchanged.
+    `deaths` counts every touch of a dot, starting from the count it is given.
+    With `god_mode` on, touching a dot does nothing and is not a death; everything
+    else is unchanged.
     '''
 
     GOD_MODE_LABEL = 'GOD MODE'
 
-    def __init__(self, level):
+    def __init__(self, level, deaths=0):
         self.level = level
+        self.deaths = deaths
         self.walls = build_walls(level.PLAYFIELD)
         self.goal = region_rect(*level.GOAL)
         self.level_surface = build_level_surface(level, self.walls)
@@ -255,6 +310,7 @@ class Play:
         for dot in self.dots:
             dot.update(dt)
         if not self.god_mode and any(dot.touches(self.player) for dot in self.dots):
+            self.deaths += 1
             self.reset()
             return
         self.coins = [coin for coin in self.coins
@@ -262,7 +318,12 @@ class Play:
         if not self.coins and self.player.colliderect(self.goal):
             self.finished = True
 
+    @property
+    def coins_collected(self):
+        return len(self.level.COINS) - len(self.coins)
+
     def draw(self, screen):
+        '''Draw the level onto `screen`, a play-area-sized surface.'''
         screen.blit(self.level_surface, (0, 0))
         for coin in self.coins:
             draw_centered(screen, self.coin_sprite, coin)
@@ -271,7 +332,9 @@ class Play:
         for dot in self.dots:
             draw_centered(screen, self.obstacle_sprite, dot.center)
         if self.god_mode:
-            screen.blit(self.god_mode_label, (16, 16))
+            # Bottom left, the one corner every course stays clear of.
+            screen.blit(self.god_mode_label,
+                        self.god_mode_label.get_rect(bottomleft=(16, SCREEN_HEIGHT - 16)))
 
 
 class Game:
@@ -279,7 +342,10 @@ class Game:
     and the win screen after the last one.
 
     Only the current state is updated, and each level starts fresh when it is
-    entered, so nothing moves while a screen is up.
+    entered, so nothing moves while a screen is up. A level is drawn under the
+    top bar; the menu and win screens fill the window.
+
+    `deaths` counts every death since Start or Restart, across levels.
 
     With `dev` on, pressing T in a level toggles god mode, which stays as set
     across levels and restarts.
@@ -291,13 +357,19 @@ class Game:
         self.god_mode = False
         self.menu = Screen("World's Easiest Game", ['START'])  # what the game opens on
         self.won = Screen('You Won!', ['RESTART', 'QUIT'])  # after the last level
+        self.bar = TopBar()
         self.play = None
         self.state = self.menu
         self.running = True
 
+    @property
+    def deaths(self):
+        return self.play.deaths if self.play else 0
+
     def start_level(self, index):
+        '''Play level `index`, carrying the death count on from the level before it.'''
         self.level_index = index
-        self.play = Play(self.levels[index])
+        self.play = Play(self.levels[index], self.deaths if index else 0)
         self.play.god_mode = self.god_mode
         self.state = self.play
 
@@ -328,7 +400,14 @@ class Game:
                 self.state = self.won
 
     def draw(self, screen):
-        self.state.draw(screen)
+        '''Draw the current state onto `screen`, the whole window.'''
+        if self.state is not self.play:
+            self.state.draw(screen)
+            return
+        level = self.play.level
+        self.bar.draw(screen, coin_text(self.play.coins_collected, len(level.COINS)),
+                      level_text(self.level_index + 1, len(self.levels)), death_text(self.deaths))
+        self.play.draw(screen.subsurface(PLAY_AREA))
 
 
 def run(levels, dev=False):
@@ -337,7 +416,7 @@ def run(levels, dev=False):
     `dev` turns on the developer-only keys: T toggles god mode.
     '''
     pygame.init()
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    screen = pygame.display.set_mode((SCREEN_WIDTH, WINDOW_HEIGHT))
     clock = pygame.time.Clock()
     game = Game(levels, dev)
     coords = []
@@ -349,7 +428,8 @@ def run(levels, dev=False):
             if event.type == pygame.QUIT:
                 game.running = False
             elif event.type == pygame.MOUSEBUTTONDOWN and DEBUG:
-                coords.append(pygame.mouse.get_pos())
+                x, y = pygame.mouse.get_pos()
+                coords.append((x, y - BAR_HEIGHT))
                 print(coords)
             game.handle(event)
 
