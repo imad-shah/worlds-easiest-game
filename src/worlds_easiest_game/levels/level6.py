@@ -25,7 +25,7 @@ SAFE_REGIONS = [
 
 GOAL = SAFE_REGIONS[-1]
 
-# Half a tile into the lower corridor, midway between successive crosses.
+# Half a tile into the lower corridor, one and a half tiles left of each cross.
 COINS = [(220, 345), (385, 345), (550, 345), (715, 345)]
 
 # The centers fall every four columns on each corridor's middle grid line.
