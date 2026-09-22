@@ -11,7 +11,7 @@ uv run worlds-easiest-game
 The game opens on a menu; click Start to play the first level. Move with WASD.
 While you play, a black bar across the top of the window shows the coins you
 have on this level out of its total (top left), which level you are on out of
-all of them (top middle, e.g. "LEVEL 3/5"), and how many times you have died
+all of them (top middle, e.g. "LEVEL 3/6"), and how many times you have died
 since you pressed Start or Restart (top right).
 Touching a blue dot sends you back to the start, the dots back to theirs, and
 any coins you picked up back to where they were. Collect every yellow coin, then

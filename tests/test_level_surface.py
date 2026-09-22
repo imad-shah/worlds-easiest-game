@@ -11,7 +11,7 @@ import pygame
 import pytest
 
 from worlds_easiest_game import engine, levels
-from worlds_easiest_game.levels import level1, level2, level3, level4, level5
+from worlds_easiest_game.levels import level1, level2, level3, level4, level5, level6
 
 
 LIGHT = pygame.Color(engine.TILE_LIGHT)
@@ -148,6 +148,22 @@ def test_level5_is_a_spiral_of_one_tile_corridors(display):
             else:
                 expected = GREEN
             assert surface.get_at(tile_center(col, row)) == expected, (col, row, mark)
+
+
+def test_level6_has_two_checkerboard_corridors_with_a_green_turn(display):
+    surface = build(level6)
+    for col in range(18):
+        for row in range(-2, 8):
+            safe = (col < 2 and row < 0) or (col >= 14 and row in (2, 3)) or (
+                col < 2 and row >= 6)
+            floor = (col >= 2 and row in (*range(-2, 2), *range(4, 8)))
+            if safe:
+                expected = GREEN
+            elif floor:
+                expected = LIGHT if (col + row) % 2 == 0 else DARK
+            else:
+                expected = pygame.Color(engine.BACKGROUND)
+            assert surface.get_at(tile_center(col, row)) == expected, (col, row)
 
 
 def test_board_is_fixed_to_the_canvas_not_to_the_level(display):
