@@ -11,7 +11,7 @@ import pygame
 import pytest
 
 from worlds_easiest_game import engine, levels
-from worlds_easiest_game.levels import level1, level2, level3, level4
+from worlds_easiest_game.levels import level1, level2, level3, level4, level5
 
 
 LIGHT = pygame.Color(engine.TILE_LIGHT)
@@ -115,6 +115,39 @@ def test_level4_is_a_stepped_room_on_the_shared_board(display):
     assert surface.get_at(tile_center(7, 0)) == DARK
     for col, row in [(8, -1), (9, -3), (2, 3), (4, 4)]:
         assert surface.get_at(tile_center(col, row)) == GREEN, (col, row)
+
+
+# Level 5 tile by tile, as the original's frames show it: columns 0 to 16 on rows
+# -2 to 7. S is the start zone, P a pocket where the spiral turns, G the goal, a
+# dot floor and # empty space, both between corridors and around the spiral.
+LEVEL5_TILES = """
+SS..............P
+###############.#
+P.............#.#
+##.##########.#.#
+##.#.......G#.#.#
+##.#.#.....G#.#.#
+##.#.########.#.#
+##.#..........#.#
+##.############.#
+##..............#
+"""
+
+
+def test_level5_is_a_spiral_of_one_tile_corridors(display):
+    surface = build(level5)
+    rows = LEVEL5_TILES.split()
+    tiles = {(col, row - 2): mark for row, line in enumerate(rows) for col, mark in enumerate(line)}
+    for col in range(-1, 18):
+        for row in range(-3, 9):
+            mark = tiles.get((col, row), '#')
+            if mark == '.':
+                expected = LIGHT if (col + row) % 2 == 0 else DARK
+            elif mark == '#':
+                expected = pygame.Color(engine.BACKGROUND)
+            else:
+                expected = GREEN
+            assert surface.get_at(tile_center(col, row)) == expected, (col, row, mark)
 
 
 def test_board_is_fixed_to_the_canvas_not_to_the_level(display):
