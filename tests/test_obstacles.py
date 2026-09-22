@@ -186,6 +186,14 @@ def test_cross_is_a_center_dot_and_evenly_spaced_straight_arms():
     assert headings == {round(10 + 45 * 1.7, 6)}
 
 
+def test_cross_can_leave_out_its_center_dot_and_start_its_arms_further_out():
+    dots = cross((0, 0), arms=4, dots_per_arm=4, spacing=30, speed=-50, inner=45, center_dot=False)
+
+    assert len(dots) == 4 * 4
+    assert [dot.radius for dot in dots] == [45, 75, 105, 135] * 4
+    assert sorted({dot.angle for dot in dots}) == [0, 90, 180, 270]
+
+
 def sample_centers(declaration, samples=360):
     '''Where a dot is at evenly spaced moments over one full period of its movement.'''
     dot = MovingObstacle(declaration)
@@ -197,22 +205,26 @@ def sample_centers(declaration, samples=360):
 
 
 @pytest.mark.parametrize('level', levels.LEVELS, ids=lambda level: level.__name__)
-def test_dots_stay_over_the_floor(level):
-    '''Patrolling dots never overlap a wall; turning dots keep their centers over the floor.
+def test_dots_keep_to_the_course(level):
+    '''Patrolling dots never overlap a wall; turning dots cross the floor on every turn.
 
     Patrols run along corridors, so they must clear the walls entirely. A spinning
-    cross reaches into a stepped room's corners, and in the original its tips pass
-    over the steps, so only their centers are held to the floor.
+    cross sweeps wherever its arms reach, and in the original its dots pass over
+    walls, stepped corners and the empty space around a course, so each turning dot
+    is only held to turning about a point on the canvas and passing over the
+    walkable floor at some point in its turn.
     '''
     walls = engine.build_walls(level.PLAYFIELD)
     floor = [engine.region_rect(*corners) for corners in level.PATH_REGIONS + level.SAFE_REGIONS]
+    canvas = pygame.Rect(0, 0, engine.SCREEN_WIDTH, engine.SCREEN_HEIGHT)
     for declaration in level.OBSTACLES:
-        for center in sample_centers(declaration):
-            if isinstance(declaration, Obstacle):
+        centers = sample_centers(declaration)
+        if isinstance(declaration, Obstacle):
+            for center in centers:
                 assert not any(
                     circle_touches_rect(center, obstacles.RADIUS, wall) for wall in walls
                 ), f'{declaration} runs into a wall at {center}'
-            else:
-                assert any(region.collidepoint(center) for region in floor), (
-                    f'{declaration} leaves the floor at {center}'
-                )
+        else:
+            assert canvas.collidepoint(declaration.center), f'{declaration} turns about a point off the canvas'
+            assert any(circle_touches_rect(center, obstacles.RADIUS, region)
+                       for center in centers for region in floor), f'{declaration} never crosses the floor'

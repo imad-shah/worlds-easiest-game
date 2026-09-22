@@ -17,7 +17,7 @@ route's length, so dots sharing a route can be staggered along it.
 
 The second movement model is rotation: a dot circling a center point at a
 fixed distance, turning at a constant angular speed. `cross` declares a whole
-spinning cross of them, center dot included, in one call:
+spinning cross of them, with or without a dot on its center, in one call:
 
     OBSTACLES = cross((488, 324), arms=4, dots_per_arm=5, spacing=29, speed=60)
 
@@ -126,17 +126,22 @@ def loop(waypoints, speed, start=0.0):
     return Obstacle(tuple(map(tuple, waypoints)), speed, start)
 
 
-def cross(center, arms, dots_per_arm, spacing, speed, angle=0.0):
-    '''A cross of dots spinning about `center`, which one dot of its own sits on.
+def cross(center, arms, dots_per_arm, spacing, speed, angle=0.0, inner=None, center_dot=True):
+    '''A cross of dots spinning about `center`.
 
     Its `arms` are spread evenly around the center, the first pointing at `angle`,
-    and each is a straight line of `dots_per_arm` dots `spacing` pixels apart,
-    counted out from the center dot. The whole cross turns as one at `speed`.
+    and each is a straight line of `dots_per_arm` dots `spacing` pixels apart. An
+    arm's innermost dot is `inner` pixels out from the center, one spacing unless
+    given. With `center_dot`, one more dot sits on the center itself. The whole
+    cross turns as one at `speed`.
     '''
-    return [Orbit(tuple(center), 0, speed, angle)] + [
-        Orbit(tuple(center), spacing * dot, speed, angle + 360 * arm / arms)
+    center = tuple(center)
+    inner = spacing if inner is None else inner
+    hub = [Orbit(center, 0, speed, angle)] if center_dot else []
+    return hub + [
+        Orbit(center, inner + spacing * dot, speed, angle + 360 * arm / arms)
         for arm in range(arms)
-        for dot in range(1, dots_per_arm + 1)
+        for dot in range(dots_per_arm)
     ]
 
 
