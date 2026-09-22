@@ -11,7 +11,7 @@ import pygame
 import pytest
 
 from worlds_easiest_game import engine, levels, obstacles
-from worlds_easiest_game.levels import level1, level2, level3, level4
+from worlds_easiest_game.levels import level1, level2, level3, level4, level5
 from worlds_easiest_game.obstacles import circle_touches_rect
 
 # The names the game loop reads out of the level data. Renaming or dropping one
@@ -207,6 +207,45 @@ def test_level4_cross_spins_clockwise_with_its_tips_over_the_steps():
     assert step_corner - obstacles.RADIUS < reach < step_corner, (
         'the tips do not pass over the stepped corners without reaching past them'
     )
+
+
+def region_tiles(corners):
+    """A region's (left, top, right, bottom) in tile lines of the floor board."""
+    (left, top), (right, bottom) = corners
+    ox, oy = engine.GRID_ORIGIN
+    return tuple(round((coord - anchor) / engine.TILE_SIZE)
+                 for coord, anchor in zip((left, top, right, bottom), (ox, oy, ox, oy)))
+
+
+def test_level5_starts_at_the_top_left_and_ends_in_the_middle():
+    """A 2-tile start zone at the top corridor's left end, the 1-by-2 goal in the spiral's middle."""
+    start, *_ = level5.SAFE_REGIONS
+    assert region_tiles(start) == (0, -2, 2, -1)
+    assert engine.region_rect(*start).contains(pygame.Rect(level5.PLAYER_SPAWN, engine.PLAYER_SIZE))
+    assert region_tiles(level5.GOAL) == (11, 2, 12, 4)
+    pockets = sorted(region_tiles(corners) for corners in level5.SAFE_REGIONS[1:] if corners != level5.GOAL)
+    assert pockets == [(0, 0, 1, 1), (16, -2, 17, -1)], 'the pockets are not at the spiral\'s two turns'
+    assert level5.COINS == [], 'level 5 has no coins in the original'
+
+
+def test_level5_cross_turns_clockwise_with_player_sized_gaps_in_its_arms():
+    """16 dots, four arms of four around an empty center, 1.5 to 7.5 tiles out."""
+    assert len(level5.OBSTACLES) == 16
+    assert {(dot.center, dot.speed > 0) for dot in level5.OBSTACLES} == {(level5.CENTER, True)}
+    assert level5.CENTER == (tile_line(col=9), tile_line(row=3))
+    assert all(dot.radius > 0 for dot in level5.OBSTACLES), 'a dot sits on the center'
+    arms = defaultdict(list)
+    for dot in level5.OBSTACLES:
+        arms[dot.angle % 360].append(dot.radius)
+    assert len(arms) == 4 and len({round(angle % 90, 6) for angle in arms}) == 1, 'the arms are not a cross'
+    for radii in arms.values():
+        tiles = [radius / engine.TILE_SIZE for radius in sorted(radii)]
+        assert tiles == pytest.approx([1.5, 3.5, 5.5, 7.5], abs=0.03)
+        gap = (sorted(radii)[1] - sorted(radii)[0]) - 2 * obstacles.RADIUS
+        assert max(engine.PLAYER_SIZE) < gap < 2 * engine.TILE_SIZE, 'the player cannot slip between two dots'
+    # The tips reach past the top of the course, 5 tiles above the center.
+    top = min(y for _, y in level5.PLAYFIELD)
+    assert max(dot.radius for dot in level5.OBSTACLES) > level5.CENTER[1] - top + obstacles.RADIUS
 
 
 def test_move_player_slides_along_a_wall_instead_of_sticking():
