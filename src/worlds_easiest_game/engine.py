@@ -224,7 +224,11 @@ class Play:
 
     The level is finished once the player has every coin and any part of them
     is on the goal's green. Until then the goal is just another safe zone.
+
+    With `god_mode` on, touching a dot does nothing; everything else is unchanged.
     '''
+
+    GOD_MODE_LABEL = 'GOD MODE'
 
     def __init__(self, level):
         self.level = level
@@ -234,6 +238,8 @@ class Play:
         self.obstacle_sprite = build_obstacle_sprite()
         self.coin_sprite = build_coin_sprite()
         self.finished = False
+        self.god_mode = False
+        self.god_mode_label = pygame.font.Font(None, 36).render(self.GOD_MODE_LABEL, True, BLACK)
         self.reset()
 
     def reset(self):
@@ -248,7 +254,7 @@ class Play:
         move_player(self.pos, self.player, velocity.x * dt, velocity.y * dt, self.walls)
         for dot in self.dots:
             dot.update(dt)
-        if any(dot.touches(self.player) for dot in self.dots):
+        if not self.god_mode and any(dot.touches(self.player) for dot in self.dots):
             self.reset()
             return
         self.coins = [coin for coin in self.coins
@@ -264,6 +270,8 @@ class Play:
         pygame.draw.rect(screen, BLACK, self.player, 5)
         for dot in self.dots:
             draw_centered(screen, self.obstacle_sprite, dot.center)
+        if self.god_mode:
+            screen.blit(self.god_mode_label, (16, 16))
 
 
 class Game:
@@ -272,10 +280,15 @@ class Game:
 
     Only the current state is updated, and each level starts fresh when it is
     entered, so nothing moves while a screen is up.
+
+    With `dev` on, pressing T in a level toggles god mode, which stays as set
+    across levels and restarts.
     '''
 
-    def __init__(self, levels):
+    def __init__(self, levels, dev=False):
         self.levels = levels
+        self.dev = dev
+        self.god_mode = False
         self.menu = Screen("World's Easiest Game", ['START'])  # what the game opens on
         self.won = Screen('You Won!', ['RESTART', 'QUIT'])  # after the last level
         self.play = None
@@ -285,10 +298,19 @@ class Game:
     def start_level(self, index):
         self.level_index = index
         self.play = Play(self.levels[index])
+        self.play.god_mode = self.god_mode
         self.state = self.play
 
+    def toggle_god_mode(self):
+        self.god_mode = not self.god_mode
+        if self.play:
+            self.play.god_mode = self.god_mode
+
     def handle(self, event):
-        if self.state is self.menu and self.menu.clicked(event) == 'START':
+        if (self.dev and self.state is self.play
+                and event.type == pygame.KEYDOWN and event.key == pygame.K_t):
+            self.toggle_god_mode()
+        elif self.state is self.menu and self.menu.clicked(event) == 'START':
             self.start_level(0)
         elif self.state is self.won:
             choice = self.won.clicked(event)
@@ -309,12 +331,15 @@ class Game:
         self.state.draw(screen)
 
 
-def run(levels):
-    '''Open the game on its menu; starting from there plays `levels` in order.'''
+def run(levels, dev=False):
+    '''Open the game on its menu; starting from there plays `levels` in order.
+
+    `dev` turns on the developer-only keys: T toggles god mode.
+    '''
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     clock = pygame.time.Clock()
-    game = Game(levels)
+    game = Game(levels, dev)
     coords = []
 
     while game.running:
