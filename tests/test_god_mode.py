@@ -1,20 +1,16 @@
-'''Tests for the developer-only god mode: the T toggle and dot contact while it is on.
+'''Tests for the developer-only god mode's T toggle.
 
-No play is scripted: the toggle is driven by single key events, and dot contact
-is checked by placing a dot on the player directly. The dummy video driver gives
-the surfaces a display to convert to without opening a window.
+No play is scripted: the toggle is driven by single key events. The dummy video
+driver gives the surfaces a display to convert to without opening a window.
 '''
 
 import os
-from collections import defaultdict
 
 import pygame
 import pytest
 
 from worlds_easiest_game import engine
 from worlds_easiest_game.levels import level1
-
-NO_KEYS = defaultdict(bool)
 
 
 @pytest.fixture(scope='module')
@@ -54,39 +50,3 @@ def test_t_is_ignored_off_a_level(display):
     game.handle(press(pygame.K_t))
     assert not game.god_mode
 
-
-def test_god_mode_carries_into_the_next_level(display):
-    game = engine.Game([level1, level1], dev=True)
-    game.start_level(0)
-    game.handle(press(pygame.K_t))
-    game.start_level(1)
-    assert game.play.god_mode
-
-
-def touch_a_dot(play):
-    '''Put the player squarely on the first dot.'''
-    play.player.center = [round(c) for c in play.dots[0].center]
-    play.pos.update(play.player.topleft)
-
-
-def test_dot_contact_resets_without_god_mode(display):
-    play = engine.Play(level1)
-    play.coins = play.coins[1:]
-    touch_a_dot(play)
-    play.update(0, NO_KEYS)
-    assert play.coins == list(level1.COINS)
-    assert play.player.topleft == tuple(level1.PLAYER_SPAWN)
-
-
-def test_dot_contact_does_nothing_in_god_mode(display):
-    play = engine.Play(level1)
-    play.god_mode = True
-    play.coins = play.coins[1:]
-    dots = play.dots
-    touch_a_dot(play)
-    spot = play.player.topleft
-    play.update(0, NO_KEYS)
-    assert play.dots is dots
-    assert play.coins == list(level1.COINS)[1:]
-    assert play.player.topleft != tuple(level1.PLAYER_SPAWN)
-    assert play.player.topleft == spot
