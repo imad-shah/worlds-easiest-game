@@ -4,8 +4,18 @@
 calls the same function.
 '''
 
+import argparse
+
 from worlds_easiest_game import engine, levels
 
 
-def main() -> None:
-    engine.run(levels.LEVELS)
+def parse_args(argv=None):
+    '''The command line: `--dev` turns on developer-only keys (T toggles god mode).'''
+    parser = argparse.ArgumentParser(prog='worlds-easiest-game')
+    parser.add_argument('--dev', action='store_true',
+                        help='developer mode: press T in a level to toggle god mode')
+    return parser.parse_args(argv)
+
+
+def main(argv=None) -> None:
+    engine.run(levels.LEVELS, dev=parse_args(argv).dev)

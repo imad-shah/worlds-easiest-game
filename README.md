@@ -22,3 +22,11 @@ into the project environment on first run.
 
 `uv run python game/main.py` starts the same game if you prefer launching the
 script directly.
+
+### Developer mode
+
+Developer-only: launch with `--dev` (`uv run worlds-easiest-game --dev`, or
+`uv run python game/main.py --dev`) to enable god mode. Press T during a level to
+toggle it; while it is on, a "GOD MODE" label shows in the top-left corner and
+touching a blue dot does nothing, so you can reach the end of the game to check it.
+Without `--dev`, T does nothing.
