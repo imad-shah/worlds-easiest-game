@@ -11,7 +11,7 @@ import pygame
 import pytest
 
 from worlds_easiest_game import engine, levels, obstacles
-from worlds_easiest_game.levels import level1, level2, level3, level4, level5
+from worlds_easiest_game.levels import level1, level2, level3, level4, level5, level6
 from worlds_easiest_game.obstacles import circle_touches_rect
 
 # The names the game loop reads out of the level data. Renaming or dropping one
@@ -246,6 +246,42 @@ def test_level5_cross_turns_clockwise_with_player_sized_gaps_in_its_arms():
     # The tips reach past the top of the course, 5 tiles above the center.
     top = min(y for _, y in level5.PLAYFIELD)
     assert max(dot.radius for dot in level5.OBSTACLES) > level5.CENTER[1] - top + obstacles.RADIUS
+
+
+def test_level6_zones_and_coins_follow_the_two_corridors():
+    assert [region_tiles(corners) for corners in level6.PATH_REGIONS] == [
+        (2, -2, 18, 2), (2, 4, 18, 8),
+    ]
+    assert [region_tiles(corners) for corners in level6.SAFE_REGIONS] == [
+        (0, -2, 2, 0), (14, 2, 18, 4), (0, 6, 2, 8),
+    ]
+    assert level6.GOAL == level6.SAFE_REGIONS[-1]
+    assert engine.region_rect(*level6.SAFE_REGIONS[0]).contains(
+        pygame.Rect(level6.PLAYER_SPAWN, engine.PLAYER_SIZE))
+    assert len(level6.COINS) == 4
+    for col, coin in zip((2.5, 6.5, 10.5, 14.5), level6.COINS):
+        assert coin == pytest.approx((tile_line(col=col), tile_line(row=4.5)), abs=1)
+
+
+def test_level6_crosses_have_one_shared_phase_and_speed():
+    assert len(level6.OBSTACLES) == 8 * 9
+    centers = {(tile_line(col=col), tile_line(row=row))
+               for row in (0, 6) for col in (4, 8, 12, 16)}
+    assert set(level6.CENTERS) == centers
+    assert {dot.center for dot in level6.OBSTACLES} == centers
+    assert {dot.speed for dot in level6.OBSTACLES} == {60}
+    for center in centers:
+        dots = [dot for dot in level6.OBSTACLES if dot.center == center]
+        assert sorted(dot.radius for dot in dots) == [0] + [34] * 4 + [68] * 4
+        assert {dot.angle % 90 for dot in dots} == {78}, 'the crosses do not start in phase'
+    for seconds in (0, 0.4, 1.25):
+        offsets = [
+            tuple((round(x - center[0], 6), round(y - center[1], 6))
+                  for dot in level6.OBSTACLES if dot.center == center
+                  for x, y in [dot.position(seconds)])
+            for center in level6.CENTERS
+        ]
+        assert all(offset == offsets[0] for offset in offsets[1:]), 'the crosses drift out of sync'
 
 
 def test_move_player_slides_along_a_wall_instead_of_sticking():
