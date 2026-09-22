@@ -189,7 +189,7 @@ def coin_text(collected, total):
 
 def level_text(number, total):
     '''The bar's middle label: the current level out of the total, as the original shows it.'''
-    return f'{number}/{total}'
+    return f'LEVEL {number}/{total}'
 
 
 def death_text(deaths):
