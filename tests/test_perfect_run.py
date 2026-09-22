@@ -158,3 +158,5 @@ def test_a_planned_route_clears_every_level_without_a_death(display):
         assert play.coins == [], f'{level.__name__} finished with coins still out'
 
     assert game.state is game.won
+    assert game.deaths == 0
+    assert engine.death_text(game.deaths) == 'DEATHS: 0'
