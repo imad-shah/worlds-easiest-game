@@ -1,12 +1,17 @@
 '''Tests for obstacle movement and contact, all pure geometry -- no window.'''
 
+import math
+
 import pygame
 import pytest
 
 from worlds_easiest_game import engine, levels, obstacles
 from worlds_easiest_game.obstacles import (
     MovingObstacle,
+    Obstacle,
+    Orbit,
     circle_touches_rect,
+    cross,
     horizontal,
     loop,
     vertical,
@@ -124,14 +129,90 @@ def test_moving_obstacle_touches_the_player_rect():
     assert dot.touches(player)
 
 
+def test_orbit_turns_clockwise_on_screen():
+    '''Angles grow clockwise as the player sees it: from pointing right, down, then left.'''
+    dot = MovingObstacle(Orbit((100, 100), radius=50, speed=90))
+
+    assert dot.center == pytest.approx((150, 100))
+    assert advance(dot, 1) == pytest.approx((100, 150)), 'did not turn down, clockwise'
+    assert advance(dot, 1) == pytest.approx((50, 100))
+    assert advance(dot, 3) == pytest.approx((100, 150)), 'did not wrap past a full turn'
+
+
+def test_orbit_starts_at_its_angle_and_a_negative_speed_turns_back():
+    assert MovingObstacle(Orbit((0, 0), radius=10, speed=30, angle=270)).center == pytest.approx((0, -10))
+    backwards = MovingObstacle(Orbit((0, 0), radius=10, speed=-45))
+    assert advance(backwards, 2) == pytest.approx((0, -10)), 'did not turn anticlockwise'
+
+
+def test_orbit_keeps_its_distance_and_period():
+    orbit = Orbit((30, 40), radius=25, speed=-72, angle=10)
+    assert orbit.period == 5
+    dot = MovingObstacle(orbit)
+    start = dot.center
+    for _ in range(37):
+        assert math.dist(advance(dot, 0.137), (30, 40)) == pytest.approx(25)
+    assert advance(MovingObstacle(orbit), orbit.period) == pytest.approx(start)
+
+
+def test_orbit_does_not_depend_on_the_frame_rate():
+    declaration = Orbit((0, 0), radius=80, speed=60, angle=15)
+    one_frame = advance(MovingObstacle(declaration), 3.3)
+    many_frames = advance(MovingObstacle(declaration), 3.3, steps=397)
+
+    assert many_frames == pytest.approx(one_frame)
+
+
+@pytest.mark.parametrize('radius, speed', [(-1, 30), (10, 0)])
+def test_orbit_needs_a_distance_and_a_speed(radius, speed):
+    with pytest.raises(ValueError):
+        Orbit((0, 0), radius, speed)
+
+
+def test_cross_is_a_center_dot_and_evenly_spaced_straight_arms():
+    dots = cross((200, 100), arms=4, dots_per_arm=3, spacing=20, speed=45, angle=10)
+
+    assert len(dots) == 1 + 4 * 3
+    assert {(dot.center, dot.speed) for dot in dots} == {((200, 100), 45)}, 'the cross does not turn as one'
+    assert [dot.radius for dot in dots] == [0] + [20, 40, 60] * 4
+    assert sorted({dot.angle for dot in dots[1:]}) == [10, 100, 190, 280]
+    # An arm stays a straight line out from the center as the cross turns.
+    moving = obstacles.spawn(dots)
+    for dot in moving:
+        dot.update(1.7)
+    arm = [dot.center for dot in moving[:4]]
+    headings = {round(math.degrees(math.atan2(y - 100, x - 200)), 6) for x, y in arm[1:]}
+    assert arm[0] == pytest.approx((200, 100)), 'the center dot moved'
+    assert headings == {round(10 + 45 * 1.7, 6)}
+
+
+def sample_centers(declaration, samples=360):
+    '''Where a dot is at evenly spaced moments over one full period of its movement.'''
+    dot = MovingObstacle(declaration)
+    centers = []
+    for _ in range(samples):
+        dot.update(declaration.period / samples)
+        centers.append(dot.center)
+    return centers
+
+
 @pytest.mark.parametrize('level', levels.LEVELS, ids=lambda level: level.__name__)
-def test_dots_stay_inside_the_walls(level):
-    '''Sampled along each route, no dot ever overlaps a wall of the course.'''
+def test_dots_stay_over_the_floor(level):
+    '''Patrolling dots never overlap a wall; turning dots keep their centers over the floor.
+
+    Patrols run along corridors, so they must clear the walls entirely. A spinning
+    cross reaches into a stepped room's corners, and in the original its tips pass
+    over the steps, so only their centers are held to the floor.
+    '''
     walls = engine.build_walls(level.PLAYFIELD)
+    floor = [engine.region_rect(*corners) for corners in level.PATH_REGIONS + level.SAFE_REGIONS]
     for declaration in level.OBSTACLES:
-        dot = MovingObstacle(declaration)
-        for _ in range(200):
-            dot.update(declaration.length / declaration.speed / 200)
-            assert not any(
-                circle_touches_rect(dot.center, obstacles.RADIUS, wall) for wall in walls
-            ), f'{declaration} runs into a wall at {dot.center}'
+        for center in sample_centers(declaration):
+            if isinstance(declaration, Obstacle):
+                assert not any(
+                    circle_touches_rect(center, obstacles.RADIUS, wall) for wall in walls
+                ), f'{declaration} runs into a wall at {center}'
+            else:
+                assert any(region.collidepoint(center) for region in floor), (
+                    f'{declaration} leaves the floor at {center}'
+                )

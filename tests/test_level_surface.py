@@ -11,7 +11,7 @@ import pygame
 import pytest
 
 from worlds_easiest_game import engine, levels
-from worlds_easiest_game.levels import level1, level2, level3
+from worlds_easiest_game.levels import level1, level2, level3, level4
 
 
 LIGHT = pygame.Color(engine.TILE_LIGHT)
@@ -99,6 +99,22 @@ def test_level3_is_a_four_by_four_board_with_one_tile_above_it(display):
             expected = LIGHT if (col + row) % 2 == 0 else DARK
         assert surface.get_at(tile_center(col, row)) == expected, (col, row)
     assert surface.get_at(tile_center(8, 0)) == pygame.Color(engine.BACKGROUND), 'no tile beside the extra one'
+
+
+def test_level4_is_a_stepped_room_on_the_shared_board(display):
+    '''Columns 5-12 on rows 0-7, stepped round, starting dark at its top-left tile as in the original.'''
+    surface = build(level4)
+    spans = {0: (7, 11), 1: (6, 12), 2: (5, 13), 3: (5, 13), 4: (5, 13), 5: (5, 13), 6: (6, 12), 7: (7, 11)}
+    for row, (first, stop) in spans.items():
+        for col in range(first, stop):
+            expected = LIGHT if (col + row) % 2 == 0 else DARK
+            assert surface.get_at(tile_center(col, row)) == expected, (col, row)
+        for col in (first - 1, stop):
+            if not (row in (3, 4) and col == 4):  # the exit, left of the middle rows
+                assert surface.get_at(tile_center(col, row)) == pygame.Color(engine.BACKGROUND), (col, row)
+    assert surface.get_at(tile_center(7, 0)) == DARK
+    for col, row in [(8, -1), (9, -3), (2, 3), (4, 4)]:
+        assert surface.get_at(tile_center(col, row)) == GREEN, (col, row)
 
 
 def test_board_is_fixed_to_the_canvas_not_to_the_level(display):

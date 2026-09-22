@@ -4,13 +4,14 @@ The engine and the level data are imported for their constants and pure helpers
 only -- nothing here opens a window or needs a display.
 '''
 
+import math
 from collections import defaultdict
 
 import pygame
 import pytest
 
-from worlds_easiest_game import engine, levels
-from worlds_easiest_game.levels import level1, level2, level3
+from worlds_easiest_game import engine, levels, obstacles
+from worlds_easiest_game.levels import level1, level2, level3, level4
 from worlds_easiest_game.obstacles import circle_touches_rect
 
 # The names the game loop reads out of the level data. Renaming or dropping one
@@ -63,11 +64,18 @@ def test_spawn_sits_in_open_space(level):
 
 
 @pytest.mark.parametrize('level', levels.LEVELS, ids=lambda level: level.__name__)
-def test_spawn_is_in_the_left_safe_zone(level):
-    leftmost = min((engine.region_rect(*corners) for corners in level.SAFE_REGIONS),
-                   key=lambda region: region.left)
+def test_spawn_is_in_a_safe_zone(level):
     player = pygame.Rect(level.PLAYER_SPAWN, engine.PLAYER_SIZE)
-    assert leftmost.contains(player), 'the player does not start in the left safe zone'
+    assert any(engine.region_rect(*corners).contains(player) for corners in level.SAFE_REGIONS), (
+        'the player does not start in a safe zone'
+    )
+
+
+def test_levels_1_and_2_start_in_the_left_safe_zone():
+    for level in (level1, level2):
+        leftmost = min((engine.region_rect(*corners) for corners in level.SAFE_REGIONS),
+                       key=lambda region: region.left)
+        assert leftmost.contains(pygame.Rect(level.PLAYER_SPAWN, engine.PLAYER_SIZE)), level.__name__
 
 
 @pytest.mark.parametrize('level', levels.LEVELS, ids=lambda level: level.__name__)
@@ -142,6 +150,63 @@ def test_level3_ring_turns_clockwise_with_a_one_dot_gap():
     slots = sorted(dot.start * 12 for dot in level3.OBSTACLES)
     spacing = [b - a for a, b in zip(slots, slots[1:] + [slots[0] + 12])]
     assert sorted(spacing) == pytest.approx([1] * 10 + [2]), 'the dots are not a tile apart with one gap'
+
+
+def tile_line(col=None, row=None):
+    '''The pixel a grid line of the floor board falls on, rounded as the walls are.'''
+    ox, oy = engine.GRID_ORIGIN
+    return round(ox + col * engine.TILE_SIZE) if row is None else round(oy + row * engine.TILE_SIZE)
+
+
+def test_level4_room_is_a_stepped_circle_with_zones_above_and_left():
+    '''Rows 4, 6, 8, 8, 8, 8, 6 and 4 tiles wide, centered on grid column line 9.'''
+    rows = sorted(level4.PATH_REGIONS, key=lambda corners: corners[0][1])
+    widths = []
+    for (left, top), (right, bottom) in rows:
+        tiles = round((bottom - top) / engine.TILE_SIZE)
+        widths += [round((right - left) / engine.TILE_SIZE)] * tiles
+        assert (left + right) / 2 == pytest.approx(tile_line(col=9), abs=1), 'a row is off center'
+    assert widths == [4, 6, 8, 8, 8, 8, 6, 4]
+    assert rows[0][0][1] == tile_line(row=0) and rows[-1][1][1] == tile_line(row=8)
+
+    start = engine.region_rect(*level4.SAFE_REGIONS[0])
+    assert (start.left, start.right - 1, start.top, start.bottom - 1) == (
+        tile_line(col=8), tile_line(col=10), tile_line(row=-3), tile_line(row=0)
+    ), 'the start zone is not two tiles wide and three tall above the room'
+    goal = engine.region_rect(*level4.GOAL)
+    assert (goal.left, goal.right - 1, goal.top, goal.bottom - 1) == (
+        tile_line(col=2), tile_line(col=5), tile_line(row=3), tile_line(row=5)
+    ), 'the exit is not three tiles wide on the room\'s middle two rows, left of it'
+    assert level4.GOAL in level4.SAFE_REGIONS and level4.GOAL != level4.SAFE_REGIONS[0]
+
+
+def test_level4_starts_just_above_the_room_in_its_middle():
+    player = pygame.Rect(level4.PLAYER_SPAWN, engine.PLAYER_SIZE)
+    assert engine.region_rect(*level4.SAFE_REGIONS[0]).contains(player)
+    assert player.centerx == pytest.approx(tile_line(col=9), abs=1)
+    assert 0 < tile_line(row=0) - player.bottom < engine.TILE_SIZE / 2
+
+
+def test_level4_coins_sit_three_tiles_above_right_of_and_below_the_middle():
+    cx, cy = level4.CENTER
+    assert (cx, cy) == (tile_line(col=9), tile_line(row=4))
+    three = 3 * engine.TILE_SIZE
+    expected = [(cx, cy - three), (cx + three, cy), (cx, cy + three)]
+    assert len(level4.COINS) == 3
+    for coin, spot in zip(level4.COINS, expected):
+        assert coin == pytest.approx(spot, abs=1)
+
+
+def test_level4_cross_spins_clockwise_with_its_tips_over_the_steps():
+    '''21 dots: four arms of five around a center dot on the middle of the room.'''
+    assert len(level4.OBSTACLES) == 21
+    assert {(dot.center, dot.speed > 0) for dot in level4.OBSTACLES} == {(level4.CENTER, True)}
+    reach = max(dot.radius for dot in level4.OBSTACLES)
+    # The steps' inner corners are 2 tiles across and 3 along from the middle.
+    step_corner = math.hypot(2, 3) * engine.TILE_SIZE
+    assert step_corner - obstacles.RADIUS < reach < step_corner, (
+        'the tips do not pass over the stepped corners without reaching past them'
+    )
 
 
 def test_move_player_slides_along_a_wall_instead_of_sticking():
