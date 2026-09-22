@@ -8,12 +8,25 @@ A level declares its obstacles as data, one line each:
         loop([(300, 200), (500, 200), (500, 350), (300, 350)], speed=250),
     ]
 
-There is one movement model behind all three: a dot moving at constant speed
-around a closed route of axis-aligned waypoints. `horizontal` and `vertical`
+Those three share one movement model, the patrol: a dot moving at constant
+speed around a closed route of axis-aligned waypoints. `horizontal` and `vertical`
 are the two-waypoint route, which runs out to the far end and straight back;
 `loop` walks every waypoint in order, turning its corners, and closes back to
 the first. `start` is where on the route the dot begins, as a fraction of the
 route's length, so dots sharing a route can be staggered along it.
+
+The second movement model is rotation: a dot circling a center point at a
+fixed distance, turning at a constant angular speed. `cross` declares a whole
+spinning cross of them, center dot included, in one call:
+
+    OBSTACLES = cross((488, 324), arms=4, dots_per_arm=5, spacing=29, speed=60)
+
+Angles are in degrees on screen: 0 points right, and they grow clockwise, so a
+positive speed turns clockwise as the player sees it.
+
+Both models answer the same two questions, `period` (seconds until the dot is
+back where it started) and `position(seconds)`, so the moving dots and
+everything downstream of them treat every obstacle alike.
 
 A declaration is immutable. `spawn` turns a level's declarations into fresh
 moving dots each time the level starts.
@@ -27,7 +40,7 @@ RADIUS = 11  # to the outside of the black outline; sized from the original game
 
 @dataclass(frozen=True)
 class Obstacle:
-    '''One obstacle as a level declares it. Build it with the helpers below.'''
+    '''One patrolling obstacle as a level declares it. Build it with the helpers below.'''
 
     route: tuple  # waypoints; the last one leads back to the first
     speed: float  # pixels per second
@@ -61,6 +74,42 @@ class Obstacle:
             distance -= leg
         return self.route[0]  # only reachable through float rounding on the last leg
 
+    @property
+    def period(self):
+        '''Seconds to go once around the route.'''
+        return self.length / self.speed
+
+    def position(self, seconds):
+        '''Where the dot is `seconds` after it set off from its start point.'''
+        return self.point_at(self.start * self.length + self.speed * seconds)
+
+
+@dataclass(frozen=True)
+class Orbit:
+    '''A dot circling `center` at a fixed distance. Build a cross of them with `cross`.'''
+
+    center: tuple
+    radius: float  # pixels from the center; 0 is a dot sitting on the center
+    speed: float  # degrees per second; positive turns clockwise on screen
+    angle: float = 0.0  # degrees clockwise from pointing right, where the dot starts
+
+    def __post_init__(self):
+        if self.radius < 0:
+            raise ValueError(f'radius {self.radius} is negative')
+        if not self.speed:
+            raise ValueError('an orbiting dot needs a speed to turn at')
+
+    @property
+    def period(self):
+        '''Seconds to go once around the circle.'''
+        return 360 / abs(self.speed)
+
+    def position(self, seconds):
+        '''Where the dot is `seconds` after it set off from its start angle.'''
+        turned = math.radians(self.angle + self.speed * seconds)
+        return (self.center[0] + self.radius * math.cos(turned),
+                self.center[1] + self.radius * math.sin(turned))
+
 
 def horizontal(y, from_x, to_x, speed, start=0.0):
     '''A dot sliding side to side along row `y`, starting out from `from_x`.'''
@@ -77,19 +126,33 @@ def loop(waypoints, speed, start=0.0):
     return Obstacle(tuple(map(tuple, waypoints)), speed, start)
 
 
+def cross(center, arms, dots_per_arm, spacing, speed, angle=0.0):
+    '''A cross of dots spinning about `center`, which one dot of its own sits on.
+
+    Its `arms` are spread evenly around the center, the first pointing at `angle`,
+    and each is a straight line of `dots_per_arm` dots `spacing` pixels apart,
+    counted out from the center dot. The whole cross turns as one at `speed`.
+    '''
+    return [Orbit(tuple(center), 0, speed, angle)] + [
+        Orbit(tuple(center), spacing * dot, speed, angle + 360 * arm / arms)
+        for arm in range(arms)
+        for dot in range(1, dots_per_arm + 1)
+    ]
+
+
 class MovingObstacle:
-    '''The live state of one declared obstacle: how far along its route it is.'''
+    '''The live state of one declared obstacle: how long it has been moving.'''
 
     def __init__(self, obstacle):
         self.obstacle = obstacle
-        self.travelled = obstacle.start * obstacle.length
+        self.elapsed = 0.0  # seconds, wrapped to the obstacle's period
 
     def update(self, dt):
-        self.travelled = (self.travelled + self.obstacle.speed * dt) % self.obstacle.length
+        self.elapsed = (self.elapsed + dt) % self.obstacle.period
 
     @property
     def center(self):
-        return self.obstacle.point_at(self.travelled)
+        return self.obstacle.position(self.elapsed)
 
     def touches(self, rect):
         '''Whether this dot overlaps `rect` (anything with left/top/right/bottom).'''
