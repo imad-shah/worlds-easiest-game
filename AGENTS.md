@@ -8,11 +8,15 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   pygame headless; anything needing a real window does not belong in the suite.
   `.github/workflows/ci.yml` runs the same commands on PRs and pushes to `main`.
 - Automated tests that play the game must play it perfectly: a route planned against
-  the level's own obstacle data and replayed through the real `Game` without touching a
-  dot, as `tests/test_perfect_run.py` does. Crude scripted play (fixed key sequences that
-  walk into walls or dots) is not wanted. All other gameplay (collisions and resets,
-  coins, goals, moving between levels, clicking through screens) is playtested by hand
-  by the maintainer; beyond perfect runs, automated tests cover static facts and pure helpers.
+  the level's own obstacle data and replayed through the real `Game` or `headless.play`
+  without touching a dot, as `tests/test_perfect_run.py` does. Crude scripted play
+  (fixed key sequences that walk into walls or dots) is not wanted. All other gameplay
+  (collisions and resets, coins, goals, moving between levels, clicking through screens)
+  is playtested by hand by the maintainer; beyond perfect runs, automated tests cover
+  static facts, pure helpers, and small synthetic levels built for one check.
+- Game logic advances only in fixed steps of `engine.STEP`, and the rules of a level
+  live in `engine.Attempt`, which needs no display. The window (`Play`) and the headless
+  move-list runner (`headless.play`) both step it, so change the rules there, not in either caller.
 - The game lives in the `worlds_easiest_game` package under `src/`, and its modules
   import each other by that absolute name. Both entry points, the console script
   declared in `pyproject.toml` and the `game/main.py` launcher, call the same

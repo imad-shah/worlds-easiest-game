@@ -1,11 +1,13 @@
-'''A perfect run of the whole game: Start, every level cleared without a death, the win screen.
+'''Perfect runs: every level cleared without a death, by the game and by the headless runner.
 
 Each level's route is planned from the level's own data before it is played. The
 dots are deterministic, so a beam search over time, stepping the dots and moving
-the player with the engine's own helpers at the game's own frame rate, finds a
-route that never touches one. The route is then replayed through the real Game,
-one frame at a time, from a left click on START. Nothing is scripted by hand: a
-level the planner cannot clear is a level the test cannot pass.
+the player with the engine's own helpers one fixed step at a time, finds a route
+of moves that never touches one. The routes are then replayed through the real
+Game, one step at a time, from a left click on START to the win screen, and
+through `headless.play`, which must beat each level the same way every time.
+Nothing is scripted by hand: a level the planner cannot clear is a level the
+tests cannot pass.
 
 The dummy video driver gives the screens and level surfaces a display to convert
 to without opening a window.
@@ -13,38 +15,28 @@ to without opening a window.
 
 import math
 import os
-from collections import defaultdict, deque
+from collections import deque
 
 import pygame
 import pytest
 
-from worlds_easiest_game import engine, levels, obstacles
+from worlds_easiest_game import engine, headless, levels, obstacles
+from worlds_easiest_game.headless import Ending, Move
 
-DT = 1 / engine.FPS
-FRAMES_PER_STEP = 3  # the planner picks a direction, then holds it this many frames
+STEPS_PER_CHOICE = 3  # the planner picks a move, then holds it this many steps
 CLEARANCE = 4  # px kept between the player and every dot, on top of touching distance
-BEAM = 100  # partial routes kept after each step
-MAX_STEPS = 1200  # 30 seconds of play per level
+BEAM = 100  # partial routes kept after each choice
+MAX_CHOICES = 1200  # 30 seconds of play per level
 CELL = 4  # px; the grid the distance fields and the beam's duplicate check use
 
-# Every way to hold the movement keys, standing still included.
-MOVES = [frozenset(key for key in (vertical, horizontal) if key)
-         for vertical in (None, pygame.K_w, pygame.K_s)
-         for horizontal in (None, pygame.K_a, pygame.K_d)]
 
-
-def held(keys):
-    '''What pygame.key.get_pressed() reports while exactly `keys` are held.'''
-    return defaultdict(bool, dict.fromkeys(keys, True))
-
-
-def dot_frames(level, frames):
-    '''Where every dot is at the end of each frame, stepped exactly as Play steps them.'''
+def dot_steps(level, steps):
+    '''Where every dot is at the end of each step, stepped exactly as an Attempt steps them.'''
     dots = obstacles.spawn(level.OBSTACLES)
     centers = []
-    for _ in range(frames):
+    for _ in range(steps):
         for dot in dots:
-            dot.update(DT)
+            dot.update(engine.STEP)
         centers.append([dot.center for dot in dots])
     return centers
 
@@ -78,10 +70,10 @@ def snap(pos, origin):
 
 
 def plan(level):
-    '''The keys to hold on each frame to clear `level` without touching a dot, or None.
+    '''The move for each step that clears `level` without touching a dot, or None.
 
     A route collects the coins in the order the level declares them, then heads for
-    the goal. Coins and the goal count as reached by the same tests Play uses.
+    the goal. Coins and the goal count as reached by the same tests an Attempt uses.
     '''
     walls = engine.level_walls(level)
     goal = engine.region_rect(*level.GOAL)
@@ -90,7 +82,7 @@ def plan(level):
                               obstacles.circle_touches_rect(coin, engine.COIN_RADIUS, player))
                for coin in coins]
     to_goal = distance_field(level, walls, goal.colliderect)
-    dots = dot_frames(level, MAX_STEPS * FRAMES_PER_STEP)
+    dots = dot_steps(level, MAX_CHOICES * STEPS_PER_CHOICE)
 
     def remaining(route):
         '''How far a route has left to go: fewer coins out first, then distance.'''
@@ -102,22 +94,23 @@ def plan(level):
     # A route: position, player rect, coins left, and the moves that led there.
     routes = [(pygame.Vector2(level.PLAYER_SPAWN), pygame.Rect(level.PLAYER_SPAWN, engine.PLAYER_SIZE),
                tuple(coins), ())]
-    for step in range(MAX_STEPS):
+    for choice in range(MAX_CHOICES):
         seen = {}
         for pos, player, left, moves in routes:
-            for move in MOVES:
-                velocity = engine.read_input(held(move))
+            for move in Move:
+                velocity = move.velocity
                 new_pos, new_player, new_left = pygame.Vector2(pos), player.copy(), left
-                for frame in range(step * FRAMES_PER_STEP, (step + 1) * FRAMES_PER_STEP):
-                    engine.move_player(new_pos, new_player, velocity.x * DT, velocity.y * DT, walls)
+                for step in range(choice * STEPS_PER_CHOICE, (choice + 1) * STEPS_PER_CHOICE):
+                    engine.move_player(new_pos, new_player, velocity.x * engine.STEP,
+                                       velocity.y * engine.STEP, walls)
                     if any(obstacles.circle_touches_rect(dot, obstacles.RADIUS + CLEARANCE, new_player)
-                           for dot in dots[frame]):
+                           for dot in dots[step]):
                         break
                     new_left = tuple(coin for coin in new_left
                                      if not obstacles.circle_touches_rect(coin, engine.COIN_RADIUS, new_player))
                     if not new_left and new_player.colliderect(goal):
-                        finishing = frame - step * FRAMES_PER_STEP + 1
-                        return [held(m) for m in moves for _ in range(FRAMES_PER_STEP)] + [held(move)] * finishing
+                        finishing = step - choice * STEPS_PER_CHOICE + 1
+                        return [m for m in moves for _ in range(STEPS_PER_CHOICE)] + [move] * finishing
                 else:
                     key = (snap(new_pos, (0, 0)), new_left)
                     if key not in seen:
@@ -129,6 +122,15 @@ def plan(level):
 
 
 @pytest.fixture(scope='module')
+def routes():
+    '''Every level's planned route, in play order.'''
+    planned = [plan(level) for level in levels.LEVELS]
+    for level, route in zip(levels.LEVELS, planned):
+        assert route is not None, f'no dot-free route through {level.__name__}'
+    return planned
+
+
+@pytest.fixture(scope='module')
 def display():
     os.environ.setdefault('SDL_VIDEODRIVER', 'dummy')
     pygame.init()
@@ -137,11 +139,7 @@ def display():
     pygame.quit()
 
 
-def test_a_planned_route_clears_every_level_without_a_death(display):
-    routes = [plan(level) for level in levels.LEVELS]
-    for level, route in zip(levels.LEVELS, routes):
-        assert route is not None, f'no dot-free route through {level.__name__}'
-
+def test_a_planned_route_clears_every_level_without_a_death(routes, display):
     game = engine.Game(levels.LEVELS)
     start = game.menu.buttons['START'].center
     game.handle(pygame.event.Event(pygame.MOUSEBUTTONDOWN, pos=start, button=1))
@@ -149,18 +147,46 @@ def test_a_planned_route_clears_every_level_without_a_death(display):
     for level, route in zip(levels.LEVELS, routes):
         play = game.play
         assert play.level is level
-        dots = play.dots  # a touch resets the level, which spawns fresh dots
-        for frame, keys in enumerate(route):
-            assert game.state is play, f'{level.__name__} ended {len(route) - frame} frames early'
-            game.update(DT, keys)
-            assert play.dots is dots, f'a dot touched the player in {level.__name__}, frame {frame}'
+        attempt = play.attempt  # a touch starts the level over with a fresh attempt
+        for step, move in enumerate(route):
+            assert game.state is play, f'{level.__name__} ended {len(route) - step} steps early'
+            game.update(move.pressed)
+            assert play.attempt is attempt, f'a dot touched the player in {level.__name__}, step {step}'
         assert play.finished, f'the route ran out before finishing {level.__name__}'
-        assert play.coins == [], f'{level.__name__} finished with coins still out'
+        assert attempt.coins == [], f'{level.__name__} finished with coins still out'
         if hasattr(level, 'CHECKPOINT'):
-            assert play.spawn == engine.centered_spawn(engine.region_rect(*level.CHECKPOINT)), (
+            assert attempt.respawn == engine.centered_spawn(engine.region_rect(*level.CHECKPOINT)), (
                 f'the route through {level.__name__} never reached its checkpoint'
             )
 
     assert game.state is game.won
     assert game.deaths == 0
     assert engine.death_text(game.deaths) == 'DEATHS: 0'
+
+
+@pytest.mark.parametrize('index', range(len(levels.LEVELS)),
+                         ids=[level.__name__ for level in levels.LEVELS])
+def test_the_runner_beats_every_level_on_its_planned_route_the_same_way_every_time(routes, index):
+    level, route = levels.LEVELS[index], routes[index]
+    result = headless.play(level, route)
+
+    assert result.ending is Ending.BEATEN
+    assert result.beaten
+    assert result.step == len(route)
+    assert result.coins == len(level.COINS)
+    assert all(headless.play(level, route) == result for _ in range(3))
+
+
+@pytest.mark.parametrize('index', range(len(levels.LEVELS)),
+                         ids=[level.__name__ for level in levels.LEVELS])
+def test_the_runner_ends_where_the_game_ends(routes, display, index):
+    '''The window steps the same Attempt, so a route leaves the player where the runner says.'''
+    level, route = levels.LEVELS[index], routes[index]
+    play = engine.Play(level)
+    for move in route:
+        play.update(move.pressed)
+    attempt = play.attempt
+
+    assert play.finished and play.deaths == 0
+    assert headless.play(level, route) == headless.Result(
+        Ending.BEATEN, attempt.steps, attempt.player.topleft, attempt.coins_collected)
