@@ -11,7 +11,7 @@ import pygame
 import pytest
 
 from worlds_easiest_game import engine, levels
-from worlds_easiest_game.levels import level1, level2, level3, level4, level5, level6, level7, level8
+from worlds_easiest_game.levels import level1, level2, level3, level4, level5, level6, level7, level8, level9
 
 
 LIGHT = pygame.Color(engine.TILE_LIGHT)
@@ -207,6 +207,26 @@ LEVEL8_TILES = """
 
 def test_level8_is_two_blocks_of_corridors_around_wall_squares(display):
     assert_tiles(build(level8), LEVEL8_TILES, 3, -2)
+
+
+# Level 9 tile by tile, as the original's frames show it: columns 0 to 17 on rows
+# -2 to 7. S is the start, C the checkpoint and G the goal.
+LEVEL9_TILES = """
+SS##......##......
+SS##......##......
+......##..##..##..
+......##..##..##..
+..######..##..##GG
+..######..##..##GG
+..##....CC....####
+..##....CC....####
+......######......
+......######......
+"""
+
+
+def test_level9_loops_round_an_island_and_on_through_a_checkpoint(display):
+    assert_tiles(build(level9), LEVEL9_TILES, 0, -2)
 
 
 def test_board_is_fixed_to_the_canvas_not_to_the_level(display):

@@ -11,7 +11,7 @@ import pygame
 import pytest
 
 from worlds_easiest_game import engine, levels, obstacles
-from worlds_easiest_game.levels import level1, level2, level3, level4, level5, level6, level7, level8
+from worlds_easiest_game.levels import level1, level2, level3, level4, level5, level6, level7, level8, level9
 from worlds_easiest_game.obstacles import circle_touches_rect
 
 # The names the game loop reads out of the level data. Renaming or dropping one
@@ -369,6 +369,77 @@ def test_level8_middle_dot_circles_the_wall_between_the_blocks_clockwise():
     middle = level8.OBSTACLES[6]
     assert route_tiles(middle.route) == pytest.approx((6.5, -0.5, 9.5, 6.5), abs=0.02)
     assert clockwise(middle.route)
+
+
+def test_level9_starts_top_left_with_a_checkpoint_in_the_middle_and_the_goal_off_an_arm():
+    start, checkpoint, goal = level9.SAFE_REGIONS
+    assert region_tiles(start) == (0, -2, 2, 0)
+    assert engine.region_rect(*start).contains(pygame.Rect(level9.PLAYER_SPAWN, engine.PLAYER_SIZE))
+    assert level9.CHECKPOINT == checkpoint and region_tiles(checkpoint) == (8, 4, 10, 6)
+    assert level9.GOAL == goal and region_tiles(goal) == (16, 2, 18, 4)
+    assert len(level9.INNER_WALLS) == 1, 'one island for the left part to loop round'
+
+
+def test_level9_coin_sits_at_the_dead_end_of_the_bottom_bar():
+    assert level9.COINS == [(tile_line(col=17), tile_line(row=7))]
+
+
+def test_centered_spawn_stands_the_player_in_the_middle_of_an_area():
+    area = pygame.Rect(447, 324, 84, 83)
+    player = pygame.Rect(engine.centered_spawn(area), engine.PLAYER_SIZE)
+    assert area.contains(player)
+    assert player.center == area.center
+
+
+def test_level9_checkpoint_is_a_safe_place_to_come_back_to():
+    """Centered on the checkpoint, the player is clear of the walls, and no dot ever reaches it."""
+    checkpoint = engine.region_rect(*level9.CHECKPOINT)
+    player = pygame.Rect(engine.centered_spawn(checkpoint), engine.PLAYER_SIZE)
+    assert checkpoint.contains(player)
+    assert player.collidelist(engine.level_walls(level9)) == -1
+    for declaration in level9.OBSTACLES:
+        dot = obstacles.MovingObstacle(declaration)
+        for _ in range(200):
+            dot.update(declaration.period / 200)
+            assert not circle_touches_rect(dot.center, obstacles.RADIUS, checkpoint), declaration
+
+
+def test_level9_dots_are_fifteen_still_eight_circling_and_two_on_ls():
+    still = [dot for dot in level9.OBSTACLES if isinstance(dot, obstacles.Still)]
+    moving = [dot for dot in level9.OBSTACLES if not isinstance(dot, obstacles.Still)]
+    assert len(still) == 15 and len(moving) == 10
+    assert {dot.speed for dot in moving} == {150}
+
+
+def test_level9_circling_dots_go_clockwise_round_two_by_two_blocks_half_a_lap_apart():
+    """Through the middles of a block's four tiles, three of the eight half a lap from the rest."""
+    circling = [dot for dot in level9.OBSTACLES if isinstance(dot, obstacles.Obstacle)][:8]
+    blocks = [(4, 0), (8, -2), (0, 6), (4, 6), (16, -2), (0, 0), (12, -2), (12, 4)]
+    for dot, (col, row) in zip(circling, blocks):
+        assert route_tiles(dot.route) == pytest.approx((col + 0.5, row + 0.5, col + 1.5, row + 1.5), abs=0.02)
+        assert clockwise(dot.route)
+        assert dot.route[0] == min(dot.route), 'the loop does not start from its top-left corner'
+    assert len({dot.length for dot in circling}) == 1, 'the loops drift apart'
+    starts = [dot.start for dot in circling]
+    assert len(set(starts[:5])) == len(set(starts[5:])) == 1
+    assert (starts[0] - starts[5]) % 1 == pytest.approx(0.5)
+
+
+def test_level9_l_dots_run_out_along_a_short_leg_and_a_long_one_and_back():
+    """Each goes out from the end of its short leg, round the corner, and straight back."""
+    l_dots = [dot for dot in level9.OBSTACLES if isinstance(dot, obstacles.Obstacle)][8:]
+    assert len(l_dots) == 2
+    for dot in l_dots:
+        start, corner, end, back = dot.route
+        assert back == corner and dot.start == 0
+        legs = (math.dist(start, corner), math.dist(corner, end))
+        assert legs[0] / engine.TILE_SIZE == pytest.approx(0.75, abs=0.02)
+        assert legs[1] / engine.TILE_SIZE == pytest.approx(2.25, abs=0.02)
+    (middle_start, middle_corner, middle_end, _), (coin_start, coin_corner, coin_end, _) = (
+        dot.route for dot in l_dots)
+    # Above the checkpoint: right, then up. Beside the coin: up, then left.
+    assert middle_corner[0] > middle_start[0] and middle_end[1] < middle_corner[1]
+    assert coin_corner[1] < coin_start[1] and coin_end[0] < coin_corner[0]
 
 
 def test_move_player_slides_along_a_wall_instead_of_sticking():

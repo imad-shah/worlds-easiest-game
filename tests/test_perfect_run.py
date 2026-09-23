@@ -156,6 +156,10 @@ def test_a_planned_route_clears_every_level_without_a_death(display):
             assert play.dots is dots, f'a dot touched the player in {level.__name__}, frame {frame}'
         assert play.finished, f'the route ran out before finishing {level.__name__}'
         assert play.coins == [], f'{level.__name__} finished with coins still out'
+        if hasattr(level, 'CHECKPOINT'):
+            assert play.spawn == engine.centered_spawn(engine.region_rect(*level.CHECKPOINT)), (
+                f'the route through {level.__name__} never reached its checkpoint'
+            )
 
     assert game.state is game.won
     assert game.deaths == 0
