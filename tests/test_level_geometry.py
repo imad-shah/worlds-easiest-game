@@ -11,7 +11,7 @@ import pygame
 import pytest
 
 from worlds_easiest_game import engine, levels, obstacles
-from worlds_easiest_game.levels import level1, level2, level3, level4, level5, level6
+from worlds_easiest_game.levels import level1, level2, level3, level4, level5, level6, level7
 from worlds_easiest_game.obstacles import circle_touches_rect
 
 # The names the game loop reads out of the level data. Renaming or dropping one
@@ -282,6 +282,33 @@ def test_level6_crosses_have_one_shared_phase_and_speed():
             for center in level6.CENTERS
         ]
         assert all(offset == offsets[0] for offset in offsets[1:]), 'the crosses drift out of sync'
+
+
+def test_level7_is_level2s_room_two_rows_taller_with_a_coin_in_each_corner():
+    assert [region_tiles(corners) for corners in level7.PATH_REGIONS] == [(3, -1, 15, 7)]
+    assert [region_tiles(corners) for corners in level7.SAFE_REGIONS] == [(0, 2, 3, 4), (15, 2, 18, 4)]
+    assert level7.GOAL == level7.SAFE_REGIONS[1]
+    assert engine.region_rect(*level7.SAFE_REGIONS[0]).contains(
+        pygame.Rect(level7.PLAYER_SPAWN, engine.PLAYER_SIZE))
+    corners = [(3.5, -0.5), (3.5, 6.5), (14.5, 6.5), (14.5, -0.5)]
+    assert len(level7.COINS) == 4
+    for (col, row), coin in zip(corners, level7.COINS):
+        assert coin == pytest.approx((tile_line(col=col), tile_line(row=row)), abs=1)
+
+
+def test_level7_dots_cross_the_room_in_alternating_columns():
+    """One dot per room column, running the full height, level 2's margin short of each wall."""
+    starts = sorted(dot.route[0] for dot in level7.OBSTACLES)
+    assert [x for x, _ in starts] == pytest.approx(
+        [tile_line(col=col + 0.5) for col in range(3, 15)], abs=1), 'not one dot per room column'
+    top, bottom = tile_line(row=-1) + 26, tile_line(row=7) - 26
+    assert [y for _, y in starts] == [top, bottom] * 6, 'the room\'s first column does not start at the top'
+    assert {dot.speed for dot in level7.OBSTACLES} == {300}
+    for dot in level7.OBSTACLES:
+        assert {y for _, y in dot.route} == {top, bottom}, f'{dot} does not cross the room'
+    # Halfway down, the two rows pass each other in the middle of the room.
+    middle = level7.OBSTACLES[0].period / 4
+    assert {round(dot.position(middle)[1]) for dot in level7.OBSTACLES} == {(top + bottom) / 2}
 
 
 def test_move_player_slides_along_a_wall_instead_of_sticking():

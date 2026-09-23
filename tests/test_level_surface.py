@@ -11,7 +11,7 @@ import pygame
 import pytest
 
 from worlds_easiest_game import engine, levels
-from worlds_easiest_game.levels import level1, level2, level3, level4, level5, level6
+from worlds_easiest_game.levels import level1, level2, level3, level4, level5, level6, level7
 
 
 LIGHT = pygame.Color(engine.TILE_LIGHT)
@@ -164,6 +164,20 @@ def test_level6_has_two_checkerboard_corridors_with_a_green_turn(display):
             else:
                 expected = pygame.Color(engine.BACKGROUND)
             assert surface.get_at(tile_center(col, row)) == expected, (col, row)
+
+
+def test_level7_room_is_a_twelve_by_eight_board_starting_light(display):
+    '''Columns 3-14 on rows -1 to 6, its top-left tile light as in the original, between green zones.'''
+    surface = build(level7)
+    for col in range(3, 15):
+        for row in range(-1, 7):
+            expected = LIGHT if (col + row) % 2 == 0 else DARK
+            assert surface.get_at(tile_center(col, row)) == expected, (col, row)
+    for col in (*range(3), *range(15, 18)):
+        for row in (2, 3):
+            assert surface.get_at(tile_center(col, row)) == GREEN, (col, row)
+        for row in (1, 4):
+            assert surface.get_at(tile_center(col, row)) == pygame.Color(engine.BACKGROUND), (col, row)
 
 
 def test_board_is_fixed_to_the_canvas_not_to_the_level(display):
