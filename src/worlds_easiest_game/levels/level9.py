@@ -5,7 +5,7 @@ from worlds_easiest_game.obstacles import loop, still
 PLAYER_SPAWN = (144, 103)
 
 # The course outline, walked clockwise from its top-left corner. It shares level
-# 1's board and level 6's footprint, tile columns 0 to 18 on rows -2 to 8, and
+# 1's board and level 6's footprint, tile columns 0 to 17 on rows -2 to 7, and
 # every corridor in it is two tiles wide. The left part runs from the start down
 # columns 0-1 and round the island below to the checkpoint on columns 8-9, rows
 # 4-5. A corridor on those rows leads right to columns 12-13, which run the

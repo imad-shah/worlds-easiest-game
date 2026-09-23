@@ -1,4 +1,4 @@
-'''Obstacles: the blue dots that patrol a level.
+'''Obstacles: the blue dots that patrol a level or stand guard in it.
 
 A level declares its obstacles as data, one line each:
 
