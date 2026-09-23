@@ -11,7 +11,7 @@ import pygame
 import pytest
 
 from worlds_easiest_game import engine, levels
-from worlds_easiest_game.levels import level1, level2, level3, level4, level5, level6, level7
+from worlds_easiest_game.levels import level1, level2, level3, level4, level5, level6, level7, level8
 
 
 LIGHT = pygame.Color(engine.TILE_LIGHT)
@@ -29,7 +29,7 @@ def display():
 
 
 def build(level):
-    return engine.build_level_surface(level, engine.build_walls(level.PLAYFIELD))
+    return engine.build_level_surface(level, engine.level_walls(level))
 
 
 @pytest.fixture(scope='module')
@@ -134,12 +134,17 @@ P.............#.#
 """
 
 
-def test_level5_is_a_spiral_of_one_tile_corridors(display):
-    surface = build(level5)
-    rows = LEVEL5_TILES.split()
-    tiles = {(col, row - 2): mark for row, line in enumerate(rows) for col, mark in enumerate(line)}
-    for col in range(-1, 18):
-        for row in range(-3, 9):
+def assert_tiles(surface, tile_map, left, top):
+    '''Check every tile of `tile_map`, and a ring of empty space around it.
+
+    The map's top-left mark is the tile at column `left` and row `top`: a dot is
+    floor, # empty space or walls, and any letter a safe zone.
+    '''
+    rows = tile_map.split()
+    tiles = {(left + col, top + row): mark
+             for row, line in enumerate(rows) for col, mark in enumerate(line)}
+    for col in range(left - 1, left + len(rows[0]) + 1):
+        for row in range(top - 1, top + len(rows) + 1):
             mark = tiles.get((col, row), '#')
             if mark == '.':
                 expected = LIGHT if (col + row) % 2 == 0 else DARK
@@ -148,6 +153,10 @@ def test_level5_is_a_spiral_of_one_tile_corridors(display):
             else:
                 expected = GREEN
             assert surface.get_at(tile_center(col, row)) == expected, (col, row, mark)
+
+
+def test_level5_is_a_spiral_of_one_tile_corridors(display):
+    assert_tiles(build(level5), LEVEL5_TILES, 0, -2)
 
 
 def test_level6_has_two_checkerboard_corridors_with_a_green_turn(display):
@@ -180,6 +189,26 @@ def test_level7_room_is_a_twelve_by_eight_board_starting_light(display):
             assert surface.get_at(tile_center(col, row)) == pygame.Color(engine.BACKGROUND), (col, row)
 
 
+# Level 8 tile by tile, as the original's frames show it: columns 3 to 14 on rows
+# -2 to 7. S is the start, cut into the top-left square, and G the goal.
+LEVEL8_TILES = """
+....##....##
+.S#....##.##
+.##.##.##.##
+....##....##
+.##.##.##.GG
+.##.##.##.GG
+....##....##
+.##.##.##.##
+.##....##.##
+....##....##
+"""
+
+
+def test_level8_is_two_blocks_of_corridors_around_wall_squares(display):
+    assert_tiles(build(level8), LEVEL8_TILES, 3, -2)
+
+
 def test_board_is_fixed_to_the_canvas_not_to_the_level(display):
     '''A course that starts on a dark tile of the board keeps it dark.
 
@@ -203,7 +232,8 @@ def test_every_wall_falls_on_a_grid_line(level):
     Walls are hand-placed in whole pixels, so allow a little slack -- anything
     under half a wall thickness is hidden underneath the wall.
     '''
-    for corner in level.PLAYFIELD:
+    corners = [corner for outline in engine.level_outlines(level) for corner in outline]
+    for corner in corners:
         for coord, anchor in zip(corner, engine.GRID_ORIGIN):
             offset = (coord - anchor) / engine.TILE_SIZE
             drift = abs(offset - round(offset)) * engine.TILE_SIZE
