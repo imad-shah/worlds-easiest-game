@@ -17,6 +17,14 @@ BAR_MARGIN = 16  # px between the bar's side labels and the window's edges
 WINDOW_HEIGHT = BAR_HEIGHT + SCREEN_HEIGHT
 PLAY_AREA = (0, BAR_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT)  # where the play area sits in the window
 FPS = 120
+# The game logic only ever advances by this much, so where the player and the dots
+# are depends on how many steps have run and the keys held for each, never on how
+# long a frame took to draw. The window runs FPS steps for every second of real time.
+STEP = 1 / FPS
+# The most real time one drawn frame may catch up on. After a longer stall (the
+# window dragged, the machine asleep) the game loses the rest rather than running
+# a burst of steps to make it up.
+MAX_FRAME_TIME = 0.1
 PLAYER_SPEED = 240  # pixels per second
 PLAYER_SIZE = (29, 29)
 WALL_THICKNESS = 6
@@ -285,22 +293,78 @@ class Screen:
                     return label
         return None
 
-    def update(self, dt, keys):
+    def update(self, keys):
         pass
 
     def draw(self, screen):
         screen.blit(self.surface, (0, 0))
 
 
-class Play:
-    '''One level being played: the player, the obstacles, the coins, and the goal.
+class Attempt:
+    '''One try at a level by its rules alone, from the spawn until it ends.
 
-    The level is finished once the player has every coin and any part of them
+    The player starts on `spawn` (the level's own spawn unless given), every dot
+    at its start, and every coin out. `step` advances all of it by one STEP: the
+    player moves at `velocity` (as `read_input` gives it), then the dots move,
+    then a dot touching the player ends the attempt as `died`, before any coin it
+    is on is collected. Otherwise the coins the player touches are collected, and
+    the attempt is `beaten` once the player has every coin and any part of them
     is on the goal's green. Until then the goal is just another safe zone.
+    `steps` counts the steps taken.
 
     A level may name one safe zone its CHECKPOINT. Once any part of the player
-    has been on it, a death puts them back centered on it instead of on the
-    level's spawn; everything else a death resets is unchanged.
+    has been on it, `respawn`, where a death puts them back, is centered on it
+    instead of on the attempt's spawn; everything else a death resets is unchanged.
+
+    Nothing here draws or needs a display, so an attempt can be stepped without a
+    window, as fast as the machine allows. The window plays a level as a series of
+    attempts, through `Play`, and `headless.play` runs a single one, so both follow
+    the same rules.
+    '''
+
+    def __init__(self, level, spawn=None):
+        spawn = level.PLAYER_SPAWN if spawn is None else spawn
+        self.level = level
+        self.walls = level_walls(level)
+        self.goal = region_rect(*level.GOAL)
+        checkpoint = getattr(level, 'CHECKPOINT', None)
+        self.checkpoint = region_rect(*checkpoint) if checkpoint else None
+        self.respawn = spawn  # where a death puts the player back
+        self.pos = pygame.Vector2(spawn)  # where the player is, to the fraction
+        self.player = pygame.Rect(spawn, PLAYER_SIZE)
+        self.dots = obstacles.spawn(level.OBSTACLES)
+        self.coins = list(level.COINS)
+        self.steps = 0
+        self.died = False
+        self.beaten = False
+
+    def step(self, velocity, god_mode=False):
+        '''Advance one STEP. With `god_mode` on, touching a dot does nothing.'''
+        self.steps += 1
+        move_player(self.pos, self.player, velocity.x * STEP, velocity.y * STEP, self.walls)
+        for dot in self.dots:
+            dot.update(STEP)
+        if not god_mode and any(dot.touches(self.player) for dot in self.dots):
+            self.died = True
+            return
+        if self.checkpoint and self.player.colliderect(self.checkpoint):
+            self.respawn = centered_spawn(self.checkpoint)
+        self.coins = [coin for coin in self.coins
+                      if not obstacles.circle_touches_rect(coin, COIN_RADIUS, self.player)]
+        if not self.coins and self.player.colliderect(self.goal):
+            self.beaten = True
+
+    @property
+    def coins_collected(self):
+        return len(self.level.COINS) - len(self.coins)
+
+
+class Play:
+    '''One level being played in the window: one `Attempt` after another until one beats it.
+
+    A dot touching the player is a death: the level starts over with a fresh
+    attempt, the player back on the `respawn` of the attempt that died, every dot
+    at its start and every coin out.
 
     `deaths` counts every touch of a dot, starting from the count it is given.
     With `god_mode` on, touching a dot does nothing and is not a death; everything
@@ -312,54 +376,33 @@ class Play:
     def __init__(self, level, deaths=0):
         self.level = level
         self.deaths = deaths
-        self.walls = level_walls(level)
-        self.goal = region_rect(*level.GOAL)
-        checkpoint = getattr(level, 'CHECKPOINT', None)
-        self.checkpoint = region_rect(*checkpoint) if checkpoint else None
-        self.spawn = level.PLAYER_SPAWN  # where a death puts the player back
-        self.level_surface = build_level_surface(level, self.walls)
+        self.attempt = Attempt(level)
+        self.level_surface = build_level_surface(level, self.attempt.walls)
         self.obstacle_sprite = build_obstacle_sprite()
         self.coin_sprite = build_coin_sprite()
-        self.finished = False
         self.god_mode = False
         self.god_mode_label = pygame.font.Font(None, 36).render(self.GOD_MODE_LABEL, True, BLACK)
-        self.reset()
 
-    def reset(self):
-        '''Put the player back on its spawn, every obstacle at its start, every coin out.'''
-        self.pos = pygame.Vector2(self.spawn)
-        self.player = pygame.Rect(self.spawn, PLAYER_SIZE)
-        self.dots = obstacles.spawn(self.level.OBSTACLES)
-        self.coins = list(self.level.COINS)
-
-    def update(self, dt, keys):
-        velocity = read_input(keys)
-        move_player(self.pos, self.player, velocity.x * dt, velocity.y * dt, self.walls)
-        for dot in self.dots:
-            dot.update(dt)
-        if not self.god_mode and any(dot.touches(self.player) for dot in self.dots):
+    def update(self, keys):
+        '''Advance one STEP with `keys` held, as pygame.key.get_pressed() reports them.'''
+        self.attempt.step(read_input(keys), self.god_mode)
+        if self.attempt.died:
             self.deaths += 1
-            self.reset()
-            return
-        if self.checkpoint and self.player.colliderect(self.checkpoint):
-            self.spawn = centered_spawn(self.checkpoint)
-        self.coins = [coin for coin in self.coins
-                      if not obstacles.circle_touches_rect(coin, COIN_RADIUS, self.player)]
-        if not self.coins and self.player.colliderect(self.goal):
-            self.finished = True
+            self.attempt = Attempt(self.level, self.attempt.respawn)
 
     @property
-    def coins_collected(self):
-        return len(self.level.COINS) - len(self.coins)
+    def finished(self):
+        return self.attempt.beaten
 
     def draw(self, screen):
         '''Draw the level onto `screen`, a play-area-sized surface.'''
+        attempt = self.attempt
         screen.blit(self.level_surface, (0, 0))
-        for coin in self.coins:
+        for coin in attempt.coins:
             draw_centered(screen, self.coin_sprite, coin)
-        pygame.draw.rect(screen, RED, self.player)
-        pygame.draw.rect(screen, BLACK, self.player, 5)
-        for dot in self.dots:
+        pygame.draw.rect(screen, RED, attempt.player)
+        pygame.draw.rect(screen, BLACK, attempt.player, 5)
+        for dot in attempt.dots:
             draw_centered(screen, self.obstacle_sprite, dot.center)
         if self.god_mode:
             # Bottom left, the one corner every course stays clear of.
@@ -421,8 +464,9 @@ class Game:
             elif choice == 'QUIT':
                 self.running = False
 
-    def update(self, dt, keys):
-        self.state.update(dt, keys)
+    def update(self, keys):
+        '''Advance the current state one STEP with `keys` held.'''
+        self.state.update(keys)
         if self.state is self.play and self.play.finished:
             if self.level_index + 1 < len(self.levels):
                 self.start_level(self.level_index + 1)
@@ -435,7 +479,7 @@ class Game:
             self.state.draw(screen)
             return
         level = self.play.level
-        self.bar.draw(screen, coin_text(self.play.coins_collected, len(level.COINS)),
+        self.bar.draw(screen, coin_text(self.play.attempt.coins_collected, len(level.COINS)),
                       level_text(self.level_index + 1, len(self.levels)), death_text(self.deaths))
         self.play.draw(screen.subsurface(PLAY_AREA))
 
@@ -450,9 +494,10 @@ def run(levels, dev=False):
     clock = pygame.time.Clock()
     game = Game(levels, dev)
     coords = []
+    unstepped = 0.0  # real time drawn frames have taken that no step has covered yet
 
     while game.running:
-        dt = clock.tick(FPS) / 1000
+        unstepped += min(clock.tick(FPS) / 1000, MAX_FRAME_TIME)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -467,7 +512,11 @@ def run(levels, dev=False):
         if keys[pygame.K_q]:
             game.running = False
 
-        game.update(dt, keys)
+        # Run a step for every STEP of real time the frame took, carrying the
+        # remainder over, so the game keeps real-time pace whatever the frame rate.
+        while unstepped >= STEP:
+            game.update(keys)
+            unstepped -= STEP
         game.draw(screen)
         pygame.display.flip()
 

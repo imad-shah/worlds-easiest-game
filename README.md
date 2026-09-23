@@ -39,3 +39,13 @@ toggle it; while it is on, a "GOD MODE" label shows in the bottom-left corner an
 touching a blue dot does nothing (and is not counted as a death), so you can reach
 the end of the game to check it.
 Without `--dev`, T does nothing.
+
+### Playing a level from a list of moves
+
+`worlds_easiest_game.headless.play(level, moves)` plays one level with no window,
+as fast as the machine allows, one move per game step (1/120 of a second). A move
+is one of the eight directions or standing still (`headless.Move`), and moves the
+player exactly as holding those keys would. The run ends at the first death, on
+beating the level, or when the moves run out, and the result reports which, the
+step it ended on, the player's final position, and the coins collected. The
+same moves on the same level always end the same way.
