@@ -11,7 +11,7 @@ import pygame
 import pytest
 
 from worlds_easiest_game import engine, levels, obstacles
-from worlds_easiest_game.levels import level1, level2, level3, level4, level5, level6, level7
+from worlds_easiest_game.levels import level1, level2, level3, level4, level5, level6, level7, level8
 from worlds_easiest_game.obstacles import circle_touches_rect
 
 # The names the game loop reads out of the level data. Renaming or dropping one
@@ -27,13 +27,13 @@ def test_level_supplies_the_names_the_loop_needs(name, level):
 
 
 @pytest.mark.parametrize('level', levels.LEVELS, ids=lambda level: level.__name__)
-def test_playfield_is_a_closed_axis_aligned_polygon(level):
-    polygon = level.PLAYFIELD
-    edges = list(zip(polygon, polygon[1:] + polygon[:1]))
-    for start, end in edges:
-        assert (start[0] == end[0]) != (start[1] == end[1]), (
-            f'edge {start}->{end} is neither horizontal nor vertical'
-        )
+def test_every_outline_is_a_closed_axis_aligned_polygon(level):
+    for polygon in engine.level_outlines(level):
+        edges = list(zip(polygon, polygon[1:] + polygon[:1]))
+        for start, end in edges:
+            assert (start[0] == end[0]) != (start[1] == end[1]), (
+                f'edge {start}->{end} is neither horizontal nor vertical'
+            )
 
 
 def test_build_walls_makes_one_wall_per_edge_centered_on_it():
@@ -50,15 +50,16 @@ def test_build_walls_makes_one_wall_per_edge_centered_on_it():
 @pytest.mark.parametrize('level', levels.LEVELS, ids=lambda level: level.__name__)
 def test_walls_close_every_corner(level):
     '''Consecutive walls must overlap, or the player leaks out at a corner.'''
-    walls = engine.build_walls(level.PLAYFIELD)
-    for i, wall in enumerate(walls):
-        nxt = walls[(i + 1) % len(walls)]
-        assert wall.colliderect(nxt), f'gap between wall {i} and wall {i + 1}'
+    for outline in engine.level_outlines(level):
+        walls = engine.build_walls(outline)
+        for i, wall in enumerate(walls):
+            nxt = walls[(i + 1) % len(walls)]
+            assert wall.colliderect(nxt), f'gap between wall {i} and wall {i + 1} of {outline}'
 
 
 @pytest.mark.parametrize('level', levels.LEVELS, ids=lambda level: level.__name__)
 def test_spawn_sits_in_open_space(level):
-    walls = engine.build_walls(level.PLAYFIELD)
+    walls = engine.level_walls(level)
     player = pygame.Rect(level.PLAYER_SPAWN, engine.PLAYER_SIZE)
     assert player.collidelist(walls) == -1, 'the player spawns inside a wall'
 
@@ -89,7 +90,7 @@ def test_goal_is_a_safe_zone_the_level_cannot_start_finished_on(level):
 
 @pytest.mark.parametrize('level', levels.LEVELS, ids=lambda level: level.__name__)
 def test_coins_sit_on_the_floor_clear_of_walls(level):
-    walls = engine.build_walls(level.PLAYFIELD)
+    walls = engine.level_walls(level)
     floor = [engine.region_rect(*corners) for corners in level.PATH_REGIONS + level.SAFE_REGIONS]
     for coin in level.COINS:
         assert any(region.collidepoint(coin) for region in floor), f'{coin} is off the course'
@@ -309,6 +310,65 @@ def test_level7_dots_cross_the_room_in_alternating_columns():
     # Halfway down, the two rows pass each other in the middle of the room.
     middle = level7.OBSTACLES[0].period / 4
     assert {round(dot.position(middle)[1]) for dot in level7.OBSTACLES} == {(top + bottom) / 2}
+
+
+def test_level8_starts_in_a_notch_and_ends_right_of_the_course():
+    """The start is the tile cut into the top-left square, the goal two by two off the right block."""
+    start, goal = level8.SAFE_REGIONS
+    assert region_tiles(start) == (4, -1, 5, 0)
+    assert engine.region_rect(*start).contains(pygame.Rect(level8.PLAYER_SPAWN, engine.PLAYER_SIZE))
+    assert level8.GOAL == goal and region_tiles(goal) == (13, 2, 15, 4)
+    assert len(level8.INNER_WALLS) == 7, 'six squares and the wall between the blocks'
+
+
+def test_level8_coins_sit_in_three_corner_tiles():
+    corners = [(3.5, 7.5), (12.5, -1.5), (12.5, 7.5)]  # bottom left, top right, bottom right
+    assert len(level8.COINS) == 3
+    for (col, row), coin in zip(corners, level8.COINS):
+        assert coin == (tile_line(col=col), tile_line(row=row))
+
+
+def clockwise(route):
+    """Whether a route turns clockwise on screen, where y grows downward."""
+    return sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in zip(route, route[1:] + route[:1])) > 0
+
+
+def route_tiles(route):
+    """A route's bounding box, (left, top, right, bottom), in tiles of the floor board."""
+    xs, ys = [x for x, _ in route], [y for _, y in route]
+    ox, oy = engine.GRID_ORIGIN
+    return tuple((coord - anchor) / engine.TILE_SIZE
+                 for coord, anchor in zip((min(xs), min(ys), max(xs), max(ys)), (ox, oy, ox, oy)))
+
+
+def test_level8_side_dots_circle_their_squares_in_step_and_mirrored():
+    """Three dots clockwise round the left squares, three anticlockwise round the right ones."""
+    assert len(level8.OBSTACLES) == 7
+    left, right, [middle] = level8.OBSTACLES[:3], level8.OBSTACLES[3:6], level8.OBSTACLES[6:]
+    for dots, first_col, turns_clockwise in ((left, 3.5, True), (right, 9.5, False)):
+        for dot, top_row in zip(dots, (-1.5, 1.5, 4.5)):
+            # Along the middles of the corridors round a two-by-two square.
+            assert route_tiles(dot.route) == pytest.approx(
+                (first_col, top_row, first_col + 3, top_row + 3), abs=0.02)
+            assert clockwise(dot.route) == turns_clockwise
+    assert {dot.speed for dot in left + right} == {150}
+    assert len({dot.length for dot in left + right}) == 1, 'the loops drift apart'
+
+    mirror = 2 * tile_line(col=8)  # the course is symmetric about column line 8
+    for seconds in (0, 0.7, 2.25, 9.6, 61):
+        offsets = set()
+        for a, b in zip(left, right):
+            (ax, ay), (bx, by) = a.position(seconds), b.position(seconds)
+            assert (bx, by) == pytest.approx((mirror - ax, ay)), 'the right block does not mirror the left'
+            offsets.add((round(ax - a.route[0][0], 6), round(ay - a.route[0][1], 6)))
+        assert len(offsets) == 1, 'the side dots are not at the same point of their loops'
+
+
+def test_level8_middle_dot_circles_the_wall_between_the_blocks_clockwise():
+    """Up the left block's inner column, across the top corridor, down, and back along the bottom one."""
+    middle = level8.OBSTACLES[6]
+    assert route_tiles(middle.route) == pytest.approx((6.5, -0.5, 9.5, 6.5), abs=0.02)
+    assert clockwise(middle.route)
 
 
 def test_move_player_slides_along_a_wall_instead_of_sticking():

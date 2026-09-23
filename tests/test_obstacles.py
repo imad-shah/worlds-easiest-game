@@ -214,7 +214,7 @@ def test_dots_keep_to_the_course(level):
     is only held to turning about a point on the canvas and passing over the
     walkable floor at some point in its turn.
     '''
-    walls = engine.build_walls(level.PLAYFIELD)
+    walls = engine.level_walls(level)
     floor = [engine.region_rect(*corners) for corners in level.PATH_REGIONS + level.SAFE_REGIONS]
     canvas = pygame.Rect(0, 0, engine.SCREEN_WIDTH, engine.SCREEN_HEIGHT)
     for declaration in level.OBSTACLES:

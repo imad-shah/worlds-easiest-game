@@ -83,7 +83,7 @@ def plan(level):
     A route collects the coins in the order the level declares them, then heads for
     the goal. Coins and the goal count as reached by the same tests Play uses.
     '''
-    walls = engine.build_walls(level.PLAYFIELD)
+    walls = engine.level_walls(level)
     goal = engine.region_rect(*level.GOAL)
     coins = list(level.COINS)
     to_coin = [distance_field(level, walls, lambda player, coin=coin:

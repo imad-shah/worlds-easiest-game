@@ -69,6 +69,20 @@ def build_walls(polygon, thickness=WALL_THICKNESS):
     return walls
 
 
+def level_outlines(level):
+    '''The course outline, then the outline of each wall standing inside the course.
+
+    A level lists those inner walls, if it has any, as INNER_WALLS: closed,
+    axis-aligned polygons like PLAYFIELD, around space that is not floor.
+    '''
+    return [level.PLAYFIELD, *getattr(level, 'INNER_WALLS', ())]
+
+
+def level_walls(level):
+    '''Every wall of `level`, built from each of its outlines.'''
+    return [wall for outline in level_outlines(level) for wall in build_walls(outline)]
+
+
 def draw_checkerboard(surface, area):
     '''Fill `area` with its part of the floor board anchored at GRID_ORIGIN.
 
@@ -287,7 +301,7 @@ class Play:
     def __init__(self, level, deaths=0):
         self.level = level
         self.deaths = deaths
-        self.walls = build_walls(level.PLAYFIELD)
+        self.walls = level_walls(level)
         self.goal = region_rect(*level.GOAL)
         self.level_surface = build_level_surface(level, self.walls)
         self.obstacle_sprite = build_obstacle_sprite()
