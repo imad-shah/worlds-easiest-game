@@ -132,7 +132,7 @@ def build_level_surface(level, walls):
 def move_player(pos, player, dx, dy, walls):
     '''Move one axis at a time so the player slides along a wall instead of sticking.
 
-    `pos` is the float position (Vector2) that survives between frames; `player`
+    `pos` is the float position (Vector2) that survives between steps; `player`
     is the integer Rect used for collision and drawing. On a hit the Rect is
     snapped flush against the wall and the float position is resynced to match.
     '''
