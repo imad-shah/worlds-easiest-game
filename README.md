@@ -18,6 +18,9 @@ any coins you picked up back to where they were. Collect every yellow coin, then
 reach the level's goal, a green zone, to finish the level and move on to the next.
 The goal is the starting zone on level 3, the middle zone on level 5, and the
 lower-left zone on level 6.
+Level 9 has a checkpoint, the green zone in the middle of the course: once you
+have reached it, touching a dot sends you back there instead of to the start.
+The dots and coins still go back to where they were.
 After the last level you win: click Restart to play again from level 1, or Quit
 to close the game.
 Press Q or close the window to quit.

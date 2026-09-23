@@ -24,7 +24,11 @@ spinning cross of them, with or without a dot on its center, in one call:
 Angles are in degrees on screen: 0 points right, and they grow clockwise, so a
 positive speed turns clockwise as the player sees it.
 
-Both models answer the same two questions, `period` (seconds until the dot is
+A dot can also stand still, declared by where it stands:
+
+    OBSTACLES = [still(300, 200)]
+
+Every kind answers the same two questions, `period` (seconds until the dot is
 back where it started) and `position(seconds)`, so the moving dots and
 everything downstream of them treat every obstacle alike.
 
@@ -109,6 +113,23 @@ class Orbit:
         turned = math.radians(self.angle + self.speed * seconds)
         return (self.center[0] + self.radius * math.cos(turned),
                 self.center[1] + self.radius * math.sin(turned))
+
+
+@dataclass(frozen=True)
+class Still:
+    '''A dot that never moves from `point`. Build it with `still`.'''
+
+    point: tuple
+
+    period = 1.0  # seconds; any time at all brings a dot that never moves back where it started
+
+    def position(self, seconds):
+        return self.point
+
+
+def still(x, y):
+    '''A dot standing at (`x`, `y`) for good.'''
+    return Still((x, y))
 
 
 def horizontal(y, from_x, to_x, speed, start=0.0):

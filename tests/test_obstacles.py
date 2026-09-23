@@ -10,10 +10,12 @@ from worlds_easiest_game.obstacles import (
     MovingObstacle,
     Obstacle,
     Orbit,
+    Still,
     circle_touches_rect,
     cross,
     horizontal,
     loop,
+    still,
     vertical,
 )
 
@@ -194,6 +196,25 @@ def test_cross_can_leave_out_its_center_dot_and_start_its_arms_further_out():
     assert sorted({dot.angle for dot in dots}) == [0, 90, 180, 270]
 
 
+def test_a_still_dot_never_moves():
+    dot = MovingObstacle(still(120, 45))
+
+    assert dot.center == (120, 45)
+    for seconds in (0.01, 0.5, 1, 3.7, 60):
+        assert advance(dot, seconds) == (120, 45)
+
+
+def test_a_loop_can_run_out_along_an_l_and_straight_back():
+    '''Waypoints out to the far end and back to the corner: the closing leg leads home.'''
+    dot = MovingObstacle(loop([(0, 0), (30, 0), (30, -30), (30, 0)], speed=30))
+
+    assert advance(dot, 0.5) == pytest.approx((15, 0))
+    assert advance(dot, 1.5) == pytest.approx((30, -30)), 'did not turn up at the corner'
+    assert advance(dot, 0.5) == pytest.approx((30, -15)), 'did not turn back at the far end'
+    assert advance(dot, 1.0) == pytest.approx((15, 0)), 'did not turn back at the corner'
+    assert advance(dot, 0.5) == pytest.approx((0, 0))
+
+
 def sample_centers(declaration, samples=360):
     '''Where a dot is at evenly spaced moments over one full period of its movement.'''
     dot = MovingObstacle(declaration)
@@ -206,9 +227,10 @@ def sample_centers(declaration, samples=360):
 
 @pytest.mark.parametrize('level', levels.LEVELS, ids=lambda level: level.__name__)
 def test_dots_keep_to_the_course(level):
-    '''Patrolling dots never overlap a wall; turning dots cross the floor on every turn.
+    '''Patrolling and still dots never overlap a wall; turning dots cross the floor on every turn.
 
-    Patrols run along corridors, so they must clear the walls entirely. A spinning
+    Patrols run along corridors and still dots stand in them, so they must clear
+    the walls entirely. A spinning
     cross sweeps wherever its arms reach, and in the original its dots pass over
     walls, stepped corners and the empty space around a course, so each turning dot
     is only held to turning about a point on the canvas and passing over the
@@ -219,7 +241,7 @@ def test_dots_keep_to_the_course(level):
     canvas = pygame.Rect(0, 0, engine.SCREEN_WIDTH, engine.SCREEN_HEIGHT)
     for declaration in level.OBSTACLES:
         centers = sample_centers(declaration)
-        if isinstance(declaration, Obstacle):
+        if isinstance(declaration, (Obstacle, Still)):
             for center in centers:
                 assert not any(
                     circle_touches_rect(center, obstacles.RADIUS, wall) for wall in walls

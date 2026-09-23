@@ -52,6 +52,13 @@ def region_rect(topleft, bottomright):
     return pygame.Rect(left, top, (right - left) + 1, (bottom - top) + 1)
 
 
+def centered_spawn(area):
+    '''Where the player's top-left corner goes for the player to stand centered on `area`.'''
+    player = pygame.Rect((0, 0), PLAYER_SIZE)
+    player.center = area.center
+    return player.topleft
+
+
 def build_walls(polygon, thickness=WALL_THICKNESS):
     '''Turn each polygon edge into a solid Rect centered on that edge.
 
@@ -291,6 +298,10 @@ class Play:
     The level is finished once the player has every coin and any part of them
     is on the goal's green. Until then the goal is just another safe zone.
 
+    A level may name one safe zone its CHECKPOINT. Once any part of the player
+    has been on it, a death puts them back centered on it instead of on the
+    level's spawn; everything else a death resets is unchanged.
+
     `deaths` counts every touch of a dot, starting from the count it is given.
     With `god_mode` on, touching a dot does nothing and is not a death; everything
     else is unchanged.
@@ -303,6 +314,9 @@ class Play:
         self.deaths = deaths
         self.walls = level_walls(level)
         self.goal = region_rect(*level.GOAL)
+        checkpoint = getattr(level, 'CHECKPOINT', None)
+        self.checkpoint = region_rect(*checkpoint) if checkpoint else None
+        self.spawn = level.PLAYER_SPAWN  # where a death puts the player back
         self.level_surface = build_level_surface(level, self.walls)
         self.obstacle_sprite = build_obstacle_sprite()
         self.coin_sprite = build_coin_sprite()
@@ -313,8 +327,8 @@ class Play:
 
     def reset(self):
         '''Put the player back on its spawn, every obstacle at its start, every coin out.'''
-        self.pos = pygame.Vector2(self.level.PLAYER_SPAWN)
-        self.player = pygame.Rect(self.level.PLAYER_SPAWN, PLAYER_SIZE)
+        self.pos = pygame.Vector2(self.spawn)
+        self.player = pygame.Rect(self.spawn, PLAYER_SIZE)
         self.dots = obstacles.spawn(self.level.OBSTACLES)
         self.coins = list(self.level.COINS)
 
@@ -327,6 +341,8 @@ class Play:
             self.deaths += 1
             self.reset()
             return
+        if self.checkpoint and self.player.colliderect(self.checkpoint):
+            self.spawn = centered_spawn(self.checkpoint)
         self.coins = [coin for coin in self.coins
                       if not obstacles.circle_touches_rect(coin, COIN_RADIUS, self.player)]
         if not self.coins and self.player.colliderect(self.goal):
