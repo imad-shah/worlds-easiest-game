@@ -7,13 +7,15 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - Run the tests with `SDL_VIDEODRIVER=dummy uv run pytest`. The dummy driver keeps
   pygame headless; anything needing a real window does not belong in the suite.
   `.github/workflows/ci.yml` runs the same commands on PRs and pushes to `main`.
-- Automated tests that play the game must play it perfectly: a route planned against
+- Automated tests play the game's real levels only perfectly: a route planned against
   the level's own obstacle data and replayed through the real `Game` or `headless.play`
   without touching a dot, as `tests/test_perfect_run.py` does. Crude scripted play
-  (fixed key sequences that walk into walls or dots) is not wanted. All other gameplay
-  (collisions and resets, coins, goals, moving between levels, clicking through screens)
-  is playtested by hand by the maintainer; beyond perfect runs, automated tests cover
-  static facts, pure helpers, and small synthetic levels built for one check.
+  (fixed key sequences that walk into walls or dots) on real levels is not wanted.
+  Small test-only levels built for one check may each exercise one runner result
+  (a death, running out of moves, a coin, sliding along a wall), as `tests/test_headless.py`
+  does. Hand playtesting of the real game (collisions and resets, coins, goals, moving
+  between levels, clicking through screens) stays with the maintainer; otherwise
+  automated tests cover static facts and pure helpers.
 - Game logic advances only in fixed steps of `engine.STEP`, and the rules of a level
   live in `engine.Attempt`, which needs no display. The window (`Play`) and the headless
   move-list runner (`headless.play`) both step it, so change the rules there, not in either caller.

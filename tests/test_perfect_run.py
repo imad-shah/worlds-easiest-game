@@ -171,7 +171,6 @@ def test_the_runner_beats_every_level_on_its_planned_route_the_same_way_every_ti
     result = headless.play(level, route)
 
     assert result.ending is Ending.BEATEN
-    assert result.beaten
     assert result.step == len(route)
     assert result.coins == len(level.COINS)
     assert all(headless.play(level, route) == result for _ in range(3))

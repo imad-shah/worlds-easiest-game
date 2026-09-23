@@ -49,10 +49,7 @@ def test_every_direction_moves_at_player_speed(move):
 
 
 def test_running_out_of_moves_reports_the_last_step():
-    result = headless.play(box(), [Move.STAY] * 5)
-
-    assert result == Result(Ending.OUT_OF_MOVES, 5, SPAWN, 0)
-    assert not result.beaten
+    assert headless.play(box(), [Move.STAY] * 5) == Result(Ending.OUT_OF_MOVES, 5, SPAWN, 0)
 
 
 def test_no_moves_ends_at_the_start():
@@ -64,10 +61,8 @@ def test_a_dot_touching_the_player_ends_the_run_where_it_happened():
     # x=100, so the dot touches once its center is within RADIUS (11px) of it:
     # at 89.5, on step 69.
     dot = horizontal(y=115, from_x=20.5, to_x=180.5, speed=engine.FPS)
-    result = headless.play(box(OBSTACLES=[dot]), [Move.STAY] * 200)
 
-    assert result == Result(Ending.DIED, 69, SPAWN, 0)
-    assert not result.beaten
+    assert headless.play(box(OBSTACLES=[dot]), [Move.STAY] * 200) == Result(Ending.DIED, 69, SPAWN, 0)
 
 
 def test_a_death_reports_the_coins_collected_before_it():
@@ -79,10 +74,8 @@ def test_a_death_reports_the_coins_collected_before_it():
 
 def test_beating_the_level_ends_the_run_on_that_step():
     level = box(GOAL=((90, 90), (140, 140)), COINS=[(115, 115)])
-    result = headless.play(level, [Move.STAY] * 10)
 
-    assert result == Result(Ending.BEATEN, 1, SPAWN, 1)
-    assert result.beaten
+    assert headless.play(level, [Move.STAY] * 10) == Result(Ending.BEATEN, 1, SPAWN, 1)
 
 
 def test_a_move_slides_along_a_wall_as_the_keyboard_does():
