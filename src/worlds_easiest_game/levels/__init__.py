@@ -12,7 +12,7 @@ The game plays LEVELS in order: collecting every coin and then reaching the
 GOAL finishes a level, and finishing the last one shows the win screen.
 '''
 
-from worlds_easiest_game.levels import level1, level2, level3, level4, level5, level6
+from worlds_easiest_game.levels import level1, level2, level3, level4, level5, level6, level7
 
 # In play order.
-LEVELS = [level1, level2, level3, level4, level5, level6]
+LEVELS = [level1, level2, level3, level4, level5, level6, level7]
