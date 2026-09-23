@@ -5,7 +5,7 @@ nothing at all. `play` runs a level's `engine.Attempt` one move per step, as fas
 as the machine allows, and reports how the run ended:
 
     result = headless.play(levels.LEVELS[0], [Move.RIGHT, Move.RIGHT, Move.DOWN_RIGHT, ...])
-    result.ending, result.step, result.position, result.coins, result.beaten
+    result.ending, result.step, result.position, result.coins
 
 A move reaches the attempt through `engine.read_input`, from the keys it holds,
 so it moves the player exactly as the keyboard does: diagonals no faster than
@@ -60,10 +60,6 @@ class Result:
     step: int  # the step it ended on, counting from 1; 0 if it had no moves
     position: tuple  # the player's top-left corner then, in play-area pixels
     coins: int  # coins collected by then
-
-    @property
-    def beaten(self):
-        return self.ending is Ending.BEATEN
 
 
 def play(level, moves):
