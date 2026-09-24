@@ -1,5 +1,5 @@
-'''Tests for the learner: its distance maps and targets, scoring, selection,
-mutation, and training level by level.
+'''Tests for the learner: its distance maps and targets, scoring, ranking,
+breeding, and training level by level.
 
 The distance map to the goal is checked on level 1 as a static fact, with no
 play. Training only ever runs on small levels built here for it, never on the
@@ -171,15 +171,15 @@ def test_on_a_level_with_only_a_goal_closeness_is_the_share_of_a_tile_walk_left(
 
 
 def test_every_target_reached_scores_above_any_run_that_reached_one_fewer():
-    targets = evolve.Targets(box(COINS=[(20, 20), (20, 180)], CHECKPOINT=((160, 0), (196, 40))))
+    targets = evolve.Targets(box(COINS=[(20, 20), (20, 180)], CHECKPOINT=((160, 0), (196, 40))), death_cost=3)
     walks = [targets.goal, targets.checkpoint, *targets.coins.values()]
     longest = max(distances.longest for distances in walks)
-    assert targets.stage == evolve.STEP_UP * (1 + longest / engine.TILE_SIZE)
+    assert targets.stage == evolve.STEP_UP * (1 + longest / engine.TILE_SIZE + 3)
 
     for left in range(3):
-        # One more target reached, as far from the next one as the level allows,
-        # against right on top of a target and still short of it.
-        ahead = targets.closeness(Heading('coin', longest, left))
+        # One more target reached, then dying as far from the next one as the
+        # level allows, against right on top of a target and still short of it.
+        ahead = targets.closeness(Heading('coin', longest, left), died=True)
         behind = targets.closeness(Heading('coin', 0, left + 1))
         assert ahead == pytest.approx(evolve.STEP_UP * behind)
         assert targets.closeness(Heading('coin', 1, left)) > targets.closeness(Heading('coin', 2, left))
@@ -188,13 +188,13 @@ def test_every_target_reached_scores_above_any_run_that_reached_one_fewer():
 
 def test_a_run_that_collected_the_coin_is_closer_than_every_run_that_has_not():
     level = gate_with_a_coin()
-    targets = evolve.Targets(level)
+    targets = evolve.Targets(level, death_cost=3)
     places = [place for place, _ in targets.goal.items()]
 
-    def closeness(place, coins_out):
-        return targets.closeness(targets.heading(place, coins_out, False))
+    def closeness(place, coins_out, died=False):
+        return targets.closeness(targets.heading(place, coins_out, False), died)
 
-    collected = min(closeness(place, ()) for place in places)
+    collected = min(closeness(place, (), died=True) for place in places)
     not_yet = max(closeness(place, tuple(level.COINS)) for place in places)
     assert collected > not_yet
     # Collecting the coin is a step up wherever the player stands to collect it.
@@ -203,102 +203,136 @@ def test_a_run_that_collected_the_coin_is_closer_than_every_run_that_has_not():
             assert closeness(place, ()) >= evolve.STEP_UP * closeness(place, tuple(level.COINS))
 
 
-def run(ending, step=100, position=(0, 0)):
-    return Result(ending, step, position, 0, (), False)
+@pytest.mark.parametrize('tiles', [0, 0.5, 5, 20])
+def test_a_run_that_died_counts_as_ending_the_death_cost_further_back(tiles):
+    targets = evolve.Targets(box(), death_cost=3)
+    distance = tiles * engine.TILE_SIZE
+
+    died = targets.closeness(Heading('goal', distance, 0), died=True)
+
+    assert died == pytest.approx(targets.closeness(Heading('goal', distance + 3 * engine.TILE_SIZE, 0)))
+    assert died < targets.closeness(Heading('goal', distance + 2.9 * engine.TILE_SIZE, 0)), \
+        'dying scored as well as waiting nearly the death cost further back'
+    assert evolve.Targets(box()).closeness(Heading('goal', distance, 0), died=True) == closeness(distance)
+
+
+def run(ending, step=100, position=(0, 0), coins=0, reached_checkpoint=False):
+    return Result(ending, step, position, coins, (), reached_checkpoint)
 
 
 def test_beating_the_level_scores_above_anything_else():
-    last_step_win = evolve.score(run(Ending.BEATEN, step=LIMIT), 1, LIMIT, SETTINGS)
-    near_miss = evolve.score(run(Ending.OUT_OF_MOVES), closeness(1), LIMIT, SETTINGS)
+    last_step_win = evolve.score(run(Ending.BEATEN, step=LIMIT), 1, LIMIT)
+    near_miss = evolve.score(run(Ending.OUT_OF_MOVES), closeness(1), LIMIT)
 
     assert last_step_win > near_miss
 
 
 def test_beating_the_level_in_fewer_steps_scores_higher():
-    scores = [evolve.score(run(Ending.BEATEN, step=step), 1, LIMIT, SETTINGS)
-              for step in (100, 101, 500, LIMIT)]
+    scores = [evolve.score(run(Ending.BEATEN, step=step), 1, LIMIT) for step in (100, 101, 500, LIMIT)]
 
     assert scores == sorted(scores, reverse=True)
     assert len(set(scores)) == len(scores)
 
 
-def test_ending_closer_to_the_goal_scores_higher():
-    scores = [evolve.score(run(Ending.OUT_OF_MOVES), closeness(distance), LIMIT, SETTINGS)
-              for distance in (1, 2, 50, 700)]
+def test_any_other_run_scores_its_closeness():
+    scores = [evolve.score(run(ending), closeness(distance), LIMIT)
+              for ending in (Ending.OUT_OF_MOVES, Ending.DIED) for distance in (1, 2, 50, 700)]
 
-    assert scores == sorted(scores, reverse=True)
-    assert len(set(scores)) == len(scores)
+    assert scores == [closeness(distance) for distance in (1, 2, 50, 700)] * 2
     assert min(scores) > 0
 
 
-@pytest.mark.parametrize('tiles', [0.1, 5, 10, 20])
-def test_dying_scores_slightly_below_running_out_of_time_at_the_same_place(tiles):
-    distance = tiles * engine.TILE_SIZE
-    died = evolve.score(run(Ending.DIED), closeness(distance), LIMIT, SETTINGS)
-    timed_out = evolve.score(run(Ending.OUT_OF_MOVES), closeness(distance), LIMIT, SETTINGS)
-    a_tile_back = evolve.score(run(Ending.OUT_OF_MOVES), closeness(distance + engine.TILE_SIZE), LIMIT, SETTINGS)
-
-    assert died == pytest.approx(timed_out * (1 - SETTINGS.death_penalty))
-    assert died < timed_out
-    assert died > a_tile_back, 'hanging back a tile scores better than dying'
+@pytest.mark.parametrize('ending, step, moves', [
+    (Ending.DIED, 1, 1), (Ending.DIED, 12, 1), (Ending.DIED, 13, 2), (Ending.BEATEN, 50, 5),
+    (Ending.OUT_OF_MOVES, 120, 10),
+])
+def test_a_run_played_every_move_it_started(ending, step, moves):
+    assert evolve.played([Move.UP] * 10, run(ending, step), 12) == moves
 
 
-def test_a_steep_progress_weight_still_scores_every_run_above_0():
-    # Steep enough that far from the goal the closeness rounds to 0.0.
-    settings = evolve.Settings(population=30, progress_weight=1e6)
-    generations = evolve.generations(gate(), settings, seed=3)
-    first, second = next(generations), next(generations)
+def breeding(**names):
+    return evolve.Settings(**(dict(population=10, growth=3, backtrack=5, persistence=0) | names))
 
-    assert not first.beaten
-    assert min(first.scores + second.scores) > 0
+
+def test_a_child_keeps_its_parents_moves_up_to_a_little_before_where_its_run_ended():
+    parent = [Move.UP] * 20
+    rng = random.Random(1)
+
+    children = [evolve.child(parent, 12, breeding(), 50, rng) for _ in range(2000)]
+
+    assert all(len(child) == 15 for child in children), 'a child plays 3 moves past its parent\'s end'
+    kept = [next((i for i, move in enumerate(child) if move is not Move.UP), len(child)) for child in children]
+    assert min(kept) == 12 - 5, 'a child kept fewer moves than the backtrack allows'
+    assert max(kept) >= 12
+    assert {move for child in children for move in child} == set(Move)
+
+
+def test_a_child_stops_at_the_time_limit():
+    child = evolve.child([Move.UP] * 20, 19, breeding(backtrack=0), 20, random.Random(1))
+
+    assert child[:19] == [Move.UP] * 19
+    assert len(child) == 20
+
+
+def test_new_random_moves_repeat_the_one_before_at_the_persistence_odds():
+    rng = random.Random(1)
+    for persistence in (0, 0.6):
+        moves = evolve.random_moves(100_000, Move.UP, persistence, rng)
+
+        repeats = sum(move is before for before, move in zip([Move.UP, *moves], moves))
+        assert repeats / len(moves) == pytest.approx(persistence + (1 - persistence) / 9, abs=0.01)
+        assert set(moves) == set(Move)
+
+
+def test_runs_crowded_into_one_spot_rank_behind_the_best_of_every_spot():
+    results = [
+        run(Ending.OUT_OF_MOVES, position=(100, 100)),
+        run(Ending.OUT_OF_MOVES, position=(119, 110)),  # the first one's spot
+        run(Ending.DIED, position=(300, 300)),
+        run(Ending.OUT_OF_MOVES, position=(100, 100), coins=1),  # the first one's spot, a coin up
+        run(Ending.OUT_OF_MOVES, position=(100, 100), reached_checkpoint=True),
+        run(Ending.OUT_OF_MOVES, position=(120, 100)),  # the next spot to the right
+    ]
+    scores = [6, 5, 4, 3, 2, 1]
+
+    assert evolve.ranking(results, scores, 20) == [0, 2, 3, 4, 5, 1]
+    assert evolve.ranking(results, scores, 1) == [0, 1, 2, 3, 4, 5]
+
+
+def generation(characters, results, scores):
+    return evolve.Generation(1, characters, results, [None] * len(characters), scores)
 
 
 def test_the_best_character_carries_over_unchanged():
     rng = random.Random(1)
     characters = [rng.choices(evolve.MOVES, k=20) for _ in range(10)]
+    results = [run(Ending.DIED, step=rng.randrange(1, 240), position=(40 * i, 0)) for i in range(10)]
     scores = [rng.random() for _ in characters]
     best = characters[scores.index(max(scores))]
-    children = evolve.next_generation(characters, scores, 25, 1, rng)  # every copied move changes
+
+    children = evolve.next_generation(generation(characters, results, scores), breeding(), 50, rng)
 
     assert len(children) == 10
-    assert children[0] == best
-    assert all(len(child) == 25 for child in children[1:])
+    assert children[0] is best
 
 
-def test_parents_are_picked_in_proportion_to_their_scores():
-    strong, weak = [Move.LEFT] * 5, [Move.RIGHT] * 5
-    characters, scores = [strong, weak] * 2000, [3, 1] * 2000
+def test_children_come_only_from_the_best_ranked_share():
+    # A hundred characters, each with moves of its own and ending in a spot of
+    # its own, scored in turn, whose children keep every move.
+    characters = [[evolve.MOVES[i % 9], evolve.MOVES[i // 9 % 9], evolve.MOVES[i // 81]] for i in range(100)]
+    results = [run(Ending.OUT_OF_MOVES, step=36, position=(20 * i, 0)) for i in range(100)]
+    scores = list(range(100))
 
-    children = evolve.next_generation(characters, scores, 5, 0, random.Random(1))[1:]
+    children = evolve.next_generation(generation(characters, results, scores),
+                                      breeding(population=100, backtrack=0, parents=0.1), 50, random.Random(1))
 
-    assert children.count(strong) / len(children) == pytest.approx(0.75, abs=0.02)
-
-
-@pytest.mark.parametrize('rate', [0, 0.015, 0.1])
-def test_a_child_changes_its_parents_moves_at_the_mutation_rate(rate):
-    rng = random.Random(1)
-    parent = rng.choices(evolve.MOVES, k=100_000)
-
-    child = evolve.child(parent, len(parent), rate, rng)
-
-    changed = sum(ours != theirs for ours, theirs in zip(child, parent))
-    assert changed / len(parent) == pytest.approx(rate, abs=0.002)
+    parents = [characters.index(child[:3]) for child in children[1:]]
+    assert set(parents) == set(range(90, 100))
 
 
-def test_a_child_adds_random_moves_after_its_parents():
-    parent = [Move.STAY] * 10
-    child = evolve.child(parent, 1010, 0, random.Random(1))
-
-    assert child[:10] == parent
-    assert set(child[10:]) == set(Move)
-
-
-def test_lists_start_short_and_grow_each_generation_up_to_the_time_limit():
-    settings = evolve.Settings(population=2, first_moves=4, growth=3, hold=12, time_limit=1)
-
-    lengths = [settings.moves_allowed(box(), generation) for generation in range(1, 6)]
-
-    assert lengths == [4, 7, 10, 10, 10]  # 10 moves of 12 steps cover the 120 steps of a second
+def test_a_list_holds_enough_moves_to_fill_the_time_limit():
+    assert evolve.Settings(population=2, hold=12, time_limit=1).most_moves(box()) == 10
+    assert evolve.Settings(population=2, hold=7, time_limit=1).most_moves(box()) == 18
 
 
 def test_the_time_limit_is_the_levels_own_unless_given():
@@ -319,12 +353,13 @@ def test_each_move_is_held_and_the_run_cut_off_at_the_time_limit():
 
 
 @pytest.mark.parametrize('bad', [
-    dict(population=1), dict(mutation=1.5), dict(hold=0), dict(first_moves=0), dict(growth=-1),
+    dict(population=1), dict(hold=0), dict(first_moves=0), dict(growth=0), dict(backtrack=-1),
     dict(hold=sys.maxsize + 1),  # more steps than can be counted
+    dict(persistence=-0.1), dict(persistence=1), dict(persistence=math.nan),
+    dict(parents=0), dict(parents=1.5), dict(parents=math.nan), dict(spot=0),
+    dict(death_cost=-1), dict(death_cost=math.inf), dict(death_cost=math.nan),
     dict(time_limit=0), dict(time_limit=math.inf), dict(time_limit=math.nan),
     dict(time_limit=1e17),  # more steps than can be counted
-    dict(progress_weight=0), dict(progress_weight=math.inf), dict(death_penalty=1),
-    dict(speed_weight=-1), dict(speed_weight=math.inf),
 ])
 def test_settings_out_of_range_are_refused(bad):
     with pytest.raises(ValueError):
@@ -519,7 +554,8 @@ def test_the_first_generation_is_led_by_the_character_nearest_the_goal():
 
 
 def test_later_generations_are_led_by_the_last_ones_best_until_it_dies():
-    rounds = evolve.rounds(gate(), SETTINGS, seed=3)
+    # With dying costing nothing, the best character is often one that died.
+    rounds = evolve.rounds(gate(), evolve.Settings(population=30, death_cost=0), seed=3)
     before = next(rounds).generation
     for playing in islice(rounds, 60):
         assert playing.champion == 0
