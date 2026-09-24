@@ -128,7 +128,8 @@ def test_dying_scores_slightly_below_running_out_of_time_at_the_same_place(tiles
 
 
 def test_a_steep_progress_weight_still_scores_every_run_above_0():
-    settings = evolve.Settings(population=30, progress_weight=math.inf)
+    # Steep enough that far from the goal the closeness rounds to 0.0.
+    settings = evolve.Settings(population=30, progress_weight=1e6)
     generations = evolve.generations(gate(), settings, seed=3)
     first, second = next(generations), next(generations)
 
@@ -201,8 +202,10 @@ def test_each_move_is_held_and_the_run_cut_off_at_the_time_limit():
 
 @pytest.mark.parametrize('bad', [
     dict(population=1), dict(mutation=1.5), dict(hold=0), dict(first_moves=0), dict(growth=-1),
-    dict(time_limit=0), dict(time_limit=math.inf), dict(progress_weight=0), dict(death_penalty=1),
-    dict(speed_weight=-1),
+    dict(time_limit=0), dict(time_limit=math.inf), dict(time_limit=math.nan),
+    dict(time_limit=1e17),  # more steps than can be counted
+    dict(progress_weight=0), dict(progress_weight=math.inf), dict(death_penalty=1),
+    dict(speed_weight=-1), dict(speed_weight=math.inf),
 ])
 def test_settings_out_of_range_are_refused(bad):
     with pytest.raises(ValueError):
