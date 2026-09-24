@@ -23,7 +23,7 @@ TRAINING_OPTIONS = {
     'first_moves': (int, 'moves in each list of the first generation'),
     'growth': (int, 'moves added to the lists each generation, up to the time limit'),
     'time_limit': (float, 'seconds a character has on each level (default: each level\'s own)'),
-    'progress_weight': (float, 'how sharply getting closer to the goal raises the score'),
+    'progress_weight': (float, 'how sharply getting closer to beating the level raises the score'),
     'death_penalty': (float, 'share of its score a character loses by dying'),
     'speed_weight': (float, 'extra score for beating the level with the whole time limit left'),
 }
