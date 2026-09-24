@@ -148,6 +148,6 @@ Once the last level is beaten, the window replays the whole game from the kept
 solutions, each level's winning run in turn from level 1 to the last, at
 normal speed, and then shows where the last one ended until you quit. If a
 level is not beaten within `--generations` generations, training stops there,
-on that level. The command still prints the same lines as
-without `--watch`, and exits with status 1 unless every level was beaten by the
-time the window closed.
+on that level. The command still prints the same training lines as without
+`--watch`, though the replay is only shown in the window, not printed, and it
+exits with status 1 unless every level was beaten by the time the window closed.
