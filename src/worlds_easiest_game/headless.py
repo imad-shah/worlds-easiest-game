@@ -9,7 +9,8 @@ as the machine allows, and reports how the run ended:
 
 `play_all` plays many lists of moves on one level at once, the way a whole
 generation of learning characters plays (see `evolve`), and reports each run
-just as `play` would.
+just as `play` would. `Runs` plays them the same way one step at a time, so
+they can be drawn as they go (see `watch`).
 
 A move reaches the attempt through `engine.read_input`, from the keys it holds,
 so it moves the player exactly as the keyboard does: diagonals no faster than
@@ -77,28 +78,69 @@ def play(level, moves):
 def play_all(level, move_lists):
     '''Play `level` once from each list in `move_lists`, and report each run as `play` would.
 
-    The runs start together and take their steps in turn, sharing one set of
-    dots, so the dots move once a step for all of them instead of once for each.
-    A run that ends drops out while the rest play on.
+    The runs play together, as `Runs`, sharing one set of dots.
     '''
-    dots = engine.Dots(level)
-    attempts = [engine.Attempt(level, dots=dots) for _ in move_lists]
-    endings = [Ending.OUT_OF_MOVES] * len(attempts)
-    going = [(i, iter(moves)) for i, moves in enumerate(move_lists)]
-    while going:
-        still_going = []
-        for i, moves in going:
-            move = next(moves, None)
-            if move is None:
-                continue
-            attempt = attempts[i]
+    return Runs(level, move_lists).finish()
+
+
+class Runs:
+    '''Runs of one level, one from each list in `move_lists`, started together and
+    stepped together, sharing one set of dots.
+
+    The dots move once a step for all of the runs instead of once for each. `step`
+    advances every run still going by one step, so the runs can be watched as they
+    play; a run that ends drops out while the rest play on, and `endings` says
+    how each one ended, or None while it is still going. `finish` plays out the
+    rest and reports each run as `play` would.
+    '''
+
+    def __init__(self, level, move_lists):
+        self.dots = engine.Dots(level)
+        self.attempts = [engine.Attempt(level, dots=self.dots) for _ in move_lists]
+        self.endings = [None] * len(self.attempts)
+        self.steps = 0  # steps taken by the runs that have gone longest
+        # Each run still going, with the move it takes next, so a run whose moves
+        # have run out ends on its last step rather than on the one after.
+        self.going = []
+        for i, moves in enumerate(move_lists):
+            self._queue(i, iter(moves))
+
+    def _queue(self, i, moves):
+        '''Line up run `i`'s next move from `moves`, or end it if it has none.'''
+        move = next(moves, None)
+        if move is None:
+            self.endings[i] = Ending.OUT_OF_MOVES
+        else:
+            self.going.append((i, move, moves))
+
+    @property
+    def over(self):
+        return not self.going
+
+    @property
+    def alive(self):
+        '''The attempts of the runs no dot has touched, going or not.'''
+        return [attempt for attempt, ending in zip(self.attempts, self.endings) if ending is not Ending.DIED]
+
+    def step(self):
+        '''Advance every run still going by one step.'''
+        if self.over:
+            return
+        self.steps += 1
+        going, self.going = self.going, []
+        for i, move, moves in going:
+            attempt = self.attempts[i]
             attempt.step(move.velocity)
             if attempt.died:
-                endings[i] = Ending.DIED
+                self.endings[i] = Ending.DIED
             elif attempt.beaten:
-                endings[i] = Ending.BEATEN
+                self.endings[i] = Ending.BEATEN
             else:
-                still_going.append((i, moves))
-        going = still_going
-    return [Result(ending, attempt.steps, attempt.player.topleft, attempt.coins_collected)
-            for ending, attempt in zip(endings, attempts)]
+                self._queue(i, moves)
+
+    def finish(self):
+        '''Play every run to its end, and report each one as `play` would.'''
+        while not self.over:
+            self.step()
+        return [Result(ending, attempt.steps, attempt.player.topleft, attempt.coins_collected)
+                for ending, attempt in zip(self.endings, self.attempts)]
