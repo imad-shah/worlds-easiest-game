@@ -95,6 +95,8 @@ def test_train_fails_when_no_character_beats_the_level(monkeypatch):
     ['train', '10', '--generations', '0'],
     ['train', '10', '--death-penalty', '1'],
     ['train', '10', '--time-limit', 'inf'],
+    ['train', '10', '--time-limit', '1e17'],
+    ['train', '10', '--speed-weight', 'inf'],
     ['--dev', 'train', '10'],
 ])
 def test_bad_training_arguments_are_rejected(trained, argv):

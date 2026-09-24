@@ -21,6 +21,7 @@ seed always trains the same way.
 import heapq
 import math
 import random
+import sys
 from dataclasses import dataclass
 from functools import cached_property
 from itertools import chain, count, islice, repeat
@@ -105,11 +106,12 @@ class Settings:
             (self.hold >= 1, 'a move must be held for at least 1 step'),
             (self.first_moves >= 1, 'the first lists must have at least 1 move'),
             (self.growth >= 0, 'the growth must not be negative'),
-            (self.time_limit is None or 0 < self.time_limit < math.inf,
-             'the time limit must be positive and finite'),
-            (self.progress_weight > 0, 'the progress weight must be positive'),
+            # A run is counted out step by step, so its steps must fit in a Python index.
+            (self.time_limit is None or 0 < self.time_limit * engine.FPS <= sys.maxsize,
+             f'the time limit must be positive and at most {sys.maxsize / engine.FPS:.3g} seconds'),
+            (0 < self.progress_weight < math.inf, 'the progress weight must be positive and finite'),
             (0 <= self.death_penalty < 1, 'the death penalty must be at least 0 and below 1'),
-            (self.speed_weight >= 0, 'the speed weight must not be negative'),
+            (0 <= self.speed_weight < math.inf, 'the speed weight must be at least 0 and finite'),
         ]
         for ok, problem in checks:
             if not ok:
