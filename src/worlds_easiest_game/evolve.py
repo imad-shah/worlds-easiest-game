@@ -2,7 +2,7 @@
 
 A character is a list of moves (`headless.Move`), each held for `Settings.hold`
 steps. A generation is a population of characters that all play the level
-together through `headless.play_all`, each until it dies, beats the level, or
+together through `headless.Runs`, each until it dies, beats the level, or
 its moves run out, and is then scored. The next generation keeps the best
 character unchanged and fills the rest with children of characters picked in
 proportion to their scores, each a copy of its parent's moves with a few

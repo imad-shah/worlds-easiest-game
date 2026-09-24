@@ -7,10 +7,10 @@ as the machine allows, and reports how the run ended:
     result = headless.play(levels.LEVELS[0], [Move.RIGHT, Move.RIGHT, Move.DOWN_RIGHT, ...])
     result.ending, result.step, result.position, result.coins
 
-`play_all` plays many lists of moves on one level at once, the way a whole
-generation of learning characters plays (see `evolve`), and reports each run
-just as `play` would. `Runs` plays them the same way one step at a time, so
-they can be drawn as they go (see `watch`).
+`play_all` plays many lists of moves on one level at once and reports each run
+just as `play` would. `Runs` plays them the same way one step at a time, the
+way a whole generation of learning characters plays (see `evolve`), so they
+can be drawn as they go (see `watch`).
 
 A move reaches the attempt through `engine.read_input`, from the keys it holds,
 so it moves the player exactly as the keyboard does: diagonals no faster than

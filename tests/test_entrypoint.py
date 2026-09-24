@@ -6,6 +6,7 @@ this file opens a window.
 '''
 
 import dataclasses
+import os
 import subprocess
 import sys
 
@@ -82,8 +83,9 @@ def test_train_with_watch_fails_when_no_character_beats_the_level(monkeypatch):
 
 
 def test_importing_the_game_prints_no_pygame_banner():
+    env = {name: value for name, value in os.environ.items() if name != 'PYGAME_HIDE_SUPPORT_PROMPT'}
     imported = subprocess.run([sys.executable, '-c', 'import worlds_easiest_game.engine'],
-                              capture_output=True, text=True, check=True)
+                              capture_output=True, text=True, check=True, env=env)
 
     assert imported.stdout == ''
     assert imported.stderr == ''
