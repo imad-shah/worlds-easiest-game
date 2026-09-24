@@ -56,3 +56,7 @@ COINS = []
 CENTER = (488, 283)
 OBSTACLES = cross(CENTER, arms=4, dots_per_arm=4, spacing=82.5, inner=62, speed=60,
                   angle=-19.5, center_dot=False)
+
+# How long a learning character gets on the level (see evolve). A perfect run
+# takes about 14.1 seconds; this leaves room for waiting on the dots.
+TIME_LIMIT = 35  # seconds

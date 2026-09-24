@@ -35,3 +35,7 @@ CENTERS = [(x, y) for y in (159, 406) for x in (282, 447, 612, 777)]
 OBSTACLES = [dot for center in CENTERS
              for dot in cross(center, arms=4, dots_per_arm=2, spacing=34,
                               speed=60, angle=-12)]
+
+# How long a learning character gets on the level (see evolve). A perfect run
+# takes about 20.8 seconds; this leaves room for waiting on the dots.
+TIME_LIMIT = 50  # seconds

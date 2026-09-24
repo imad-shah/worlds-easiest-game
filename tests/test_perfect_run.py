@@ -178,6 +178,15 @@ def test_the_runner_beats_every_level_on_its_planned_route_the_same_way_every_ti
 
 @pytest.mark.parametrize('index', range(len(levels.LEVELS)),
                          ids=[level.__name__ for level in levels.LEVELS])
+def test_every_level_gives_the_learner_at_least_twice_its_planned_routes_time(routes, index):
+    '''A learning character walks less directly than the planner and waits longer on the dots.'''
+    level, route = levels.LEVELS[index], routes[index]
+
+    assert level.TIME_LIMIT * engine.FPS >= 2 * len(route)
+
+
+@pytest.mark.parametrize('index', range(len(levels.LEVELS)),
+                         ids=[level.__name__ for level in levels.LEVELS])
 def test_the_runner_ends_where_the_game_ends(routes, display, index):
     '''The window steps the same Attempt, so a route leaves the player where the runner says.'''
     level, route = levels.LEVELS[index], routes[index]
@@ -188,4 +197,5 @@ def test_the_runner_ends_where_the_game_ends(routes, display, index):
 
     assert play.finished and play.deaths == 0
     assert headless.play(level, route) == headless.Result(
-        Ending.BEATEN, attempt.steps, attempt.player.topleft, attempt.coins_collected)
+        Ending.BEATEN, attempt.steps, attempt.player.topleft, attempt.coins_collected, tuple(attempt.coins),
+        attempt.reached_checkpoint)

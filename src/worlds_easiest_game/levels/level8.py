@@ -82,3 +82,7 @@ OBSTACLES = [
            speed=150, start=SIDE_START) for top in TOPS),
     loop(MIDDLE, speed=158, start=MIDDLE_START),
 ]
+
+# How long a learning character gets on the level (see evolve). A perfect run
+# takes about 9.2 seconds; this leaves room for waiting on the dots.
+TIME_LIMIT = 25  # seconds

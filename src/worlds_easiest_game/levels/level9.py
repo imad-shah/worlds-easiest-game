@@ -102,3 +102,7 @@ OBSTACLES = [
     # at the corner again on the way back.
     *(loop([start, corner, end, corner], SPEED) for start, corner, end in L_SHAPES),
 ]
+
+# How long a learning character gets on the level (see evolve). A perfect run
+# takes about 8.5 seconds; this leaves room for waiting on the dots.
+TIME_LIMIT = 25  # seconds

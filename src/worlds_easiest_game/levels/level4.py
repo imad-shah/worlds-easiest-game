@@ -44,3 +44,7 @@ COINS = [(488, 200), (612, 324), (488, 448)]
 # corners, and the first arm 37 degrees clockwise from pointing right.
 # One turn every six seconds moves the tips at about 150px/s, level 3's speed.
 OBSTACLES = cross(CENTER, arms=4, dots_per_arm=5, spacing=29, speed=60, angle=37)
+
+# How long a learning character gets on the level (see evolve). A perfect run
+# takes about 4.0 seconds; this leaves room for waiting on the dots.
+TIME_LIMIT = 15  # seconds
