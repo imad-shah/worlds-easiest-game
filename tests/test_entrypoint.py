@@ -9,6 +9,7 @@ import dataclasses
 import os
 import subprocess
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -42,27 +43,31 @@ def test_unknown_arguments_are_rejected(played):
     assert played == []
 
 
+BEATEN = SimpleNamespace(beaten=True)  # stands in for an evolve.Training that beat every level
+STUCK = SimpleNamespace(beaten=False)
+
+
 @pytest.fixture
 def trained(monkeypatch):
-    '''Every call to evolve.train, each beating the level at once.'''
+    '''Every call to evolve.train, each beating every level at once.'''
     calls = []
-    monkeypatch.setattr(evolve, 'train', lambda *args: calls.append(args) or 'the winning generation')
+    monkeypatch.setattr(evolve, 'train', lambda *args: calls.append(args) or BEATEN)
     return calls
 
 
-def test_train_learns_level1_with_the_default_settings_and_the_population_given(trained, played):
+def test_train_learns_every_level_with_the_default_settings_and_the_population_given(trained, played):
     worlds_easiest_game.main(['train', '300', '--seed', '7'])
 
-    assert trained == [(levels.LEVELS[0], evolve.Settings(population=300), 7,
+    assert trained == [(levels.LEVELS, evolve.Settings(population=300), 7,
                         worlds_easiest_game.DEFAULT_GENERATIONS)]
     assert played == []
 
 
 @pytest.fixture
 def watched(monkeypatch):
-    '''Every call to watch.run, each beating the level at once.'''
+    '''Every call to watch.run, each beating every level at once.'''
     calls = []
-    monkeypatch.setattr(watch, 'run', lambda *args: calls.append(args) or 'the winning generation')
+    monkeypatch.setattr(watch, 'run', lambda *args: calls.append(args) or BEATEN)
     return calls
 
 
@@ -70,13 +75,13 @@ def test_train_with_watch_trains_the_same_way_in_the_window(trained, watched, pl
     worlds_easiest_game.main(['train', '300', '--watch', '--seed', '7', '--generations', '50',
                               '--mutation', '0.02'])
 
-    assert watched == [(levels.LEVELS[0], evolve.Settings(population=300, mutation=0.02), 7, 50)]
+    assert watched == [(levels.LEVELS, evolve.Settings(population=300, mutation=0.02), 7, 50)]
     assert trained == []
     assert played == []
 
 
-def test_train_with_watch_fails_when_no_character_beats_the_level(monkeypatch):
-    monkeypatch.setattr(watch, 'run', lambda *args: None)
+def test_train_with_watch_fails_unless_every_level_is_beaten(monkeypatch):
+    monkeypatch.setattr(watch, 'run', lambda *args: STUCK)
     with pytest.raises(SystemExit) as exit:
         worlds_easiest_game.main(['train', '10', '--watch', '--seed', '1'])
     assert exit.value.code == 1
@@ -115,11 +120,12 @@ def test_train_picks_a_seed_and_prints_it_unless_given(trained, capsys):
     worlds_easiest_game.main(['train', '10'])
 
     [(_, _, seed, _)] = trained
-    assert capsys.readouterr().out == f'Training on level 1: 10 characters a generation, seed {seed}.\n'
+    assert capsys.readouterr().out == (f'Training on all {len(levels.LEVELS)} levels in turn: '
+                                       f'10 characters a generation, seed {seed}.\n')
 
 
-def test_train_fails_when_no_character_beats_the_level(monkeypatch):
-    monkeypatch.setattr(evolve, 'train', lambda *args: None)
+def test_train_fails_unless_every_level_is_beaten(monkeypatch):
+    monkeypatch.setattr(evolve, 'train', lambda *args: STUCK)
     with pytest.raises(SystemExit) as exit:
         worlds_easiest_game.main(['train', '10', '--seed', '1'])
     assert exit.value.code == 1
