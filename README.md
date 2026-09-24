@@ -8,11 +8,13 @@ Recreating the game "World's hardest game"
 uv run worlds-easiest-game
 ```
 
-The game opens on a menu; click Start to play the first level. Move with WASD.
+The game opens on a menu with two options: click Start game to play the first
+level yourself, or Watch the AI beat the game to watch the learner train on every
+level in turn (see [Watching it learn](#watching-it-learn)). Move with WASD.
 While you play, a black bar across the top of the window shows the coins you
 have on this level out of its total (top left), which level you are on out of
 all of them (top middle), and how many times you have died
-since you pressed Start or Restart (top right).
+since you pressed Start game or Restart (top right).
 Touching a blue dot sends you back to the start, the dots back to theirs, and
 any coins you picked up back to where they were. Collect every yellow coin, then
 reach the level's goal, a green zone, to finish the level and move on to the next.
@@ -133,11 +135,13 @@ to 128 generations and 2 min 27 s to 3 min 29 s. Every other level took at most
 
 ### Watching it learn
 
+Click Watch the AI beat the game on the menu, or run
+
 ```
 uv run worlds-easiest-game train 300 --watch
 ```
 
-trains the same way, taking the same options, but in the game window, on each
+to train the same way as `train`, but in the game window, on each
 level as the game draws it. Every character of the generation plays at once,
 at the game's normal speed, each drawn as the red player square; a character
 that dies disappears. A coin is drawn until every character drawn has collected
@@ -147,6 +151,13 @@ lists, flash by in about a second each and later ones run longer. Once a
 character beats the level, the window moves on to the next level, and a new
 population starts there. These are the very runs the learner scores and breeds
 from.
+
+Before you click Watch the AI beat the game, the menu's minus and plus buttons,
+under it, set how many characters each generation has: 300 to start with, the
+population the default settings are tuned for, and anywhere from 2 to 1000.
+Every other setting is its default, the seed is random (and printed, with the
+training lines, as `train` prints them), and a level gets 1000 generations. For
+any other settings or a seed of your own, use `train --watch`.
 
 Instead of the top bar, a line of white text at the top left shows the level
 being learned, the generation, how many of its characters are still alive, and
@@ -161,11 +172,14 @@ how many steps its run has taken, with a hint line for the keys under it:
   it has died, it is whichever character still alive is closest to beating the
   level, by the same measure it is scored by.
 - Q, or closing the window, quits.
+- Esc, when you started watching from the menu, stops watching and goes back
+  to the menu, at any point, even after training ends; "Esc: back to menu" at
+  the top right says so.
 
 Once the last level is beaten, the window replays the whole game from the kept
 solutions, each level's winning run in turn from level 1 to the last, at
-normal speed, and then shows where the last one ended until you quit. If a
-level is not beaten within `--generations` generations, training stops there,
-on that level. The command still prints the same training lines as without
+normal speed, and then shows where the last one ended until you quit (or,
+from the menu, go back to it). If a level is not beaten within `--generations`
+generations, training stops there, on that level. The command still prints the same training lines as without
 `--watch`, though the replay is only shown in the window, not printed, and it
 exits with status 1 unless every level was beaten by the time the window closed.

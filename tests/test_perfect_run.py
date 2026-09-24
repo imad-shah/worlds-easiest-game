@@ -4,7 +4,7 @@ Each level's route is planned from the level's own data before it is played. The
 dots are deterministic, so a beam search over time, stepping the dots and moving
 the player with the engine's own helpers one fixed step at a time, finds a route
 of moves that never touches one. The routes are then replayed through the real
-Game, one step at a time, from a left click on START to the win screen, and
+Game, one step at a time, from a left click on Start game to the win screen, and
 through `headless.play`, which must beat each level the same way every time.
 Nothing is scripted by hand: a level the planner cannot clear is a level the
 tests cannot pass.
@@ -20,7 +20,7 @@ from collections import deque
 import pygame
 import pytest
 
-from worlds_easiest_game import engine, headless, levels, obstacles
+from worlds_easiest_game import app, engine, headless, levels, obstacles
 from worlds_easiest_game.headless import Ending, Move
 
 STEPS_PER_CHOICE = 3  # the planner picks a move, then holds it this many steps
@@ -140,8 +140,8 @@ def display():
 
 
 def test_a_planned_route_clears_every_level_without_a_death(routes, display):
-    game = engine.Game(levels.LEVELS)
-    start = game.menu.buttons['START'].center
+    game = app.Game(levels.LEVELS)
+    start = game.menu.buttons[app.START].center
     game.handle(pygame.event.Event(pygame.MOUSEBUTTONDOWN, pos=start, button=1))
 
     for level, route in zip(levels.LEVELS, routes):

@@ -1,6 +1,6 @@
 '''Tests for what the `worlds-easiest-game` console script actually starts.
 
-`main` is pure wiring, so `engine.run`, `evolve.train`, and `watch.run` are
+`main` is pure wiring, so `app.run`, `evolve.train`, and `watch.run` are
 monkeypatched here and neither the game loop nor any training runs -- nothing in
 this file opens a window.
 '''
@@ -14,13 +14,13 @@ from types import SimpleNamespace
 import pytest
 
 import worlds_easiest_game
-from worlds_easiest_game import engine, evolve, levels, watch
+from worlds_easiest_game import app, evolve, levels, watch
 
 
 @pytest.fixture
 def played(monkeypatch):
     calls = []
-    monkeypatch.setattr(engine, 'run', lambda levels, dev: calls.append((levels, dev)))
+    monkeypatch.setattr(app, 'run', lambda levels, dev: calls.append((levels, dev)))
     return calls
 
 
@@ -59,7 +59,7 @@ def test_train_learns_every_level_with_the_default_settings_and_the_population_g
     worlds_easiest_game.main(['train', '300', '--seed', '7'])
 
     assert trained == [(levels.LEVELS, evolve.Settings(population=300), 7,
-                        worlds_easiest_game.DEFAULT_GENERATIONS)]
+                        evolve.DEFAULT_GENERATIONS)]
     assert played == []
 
 
