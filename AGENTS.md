@@ -7,6 +7,10 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - Run the tests with `SDL_VIDEODRIVER=dummy uv run pytest`. The dummy driver keeps
   pygame headless; anything needing a real window does not belong in the suite.
   `.github/workflows/ci.yml` runs the same commands on PRs and pushes to `main`.
+- Every automated test and every piece of validation evidence (screenshots, watch-mode
+  captures, measurements) runs headless under `SDL_VIDEODRIVER=dummy`, rendering frames
+  offscreen to files. Never open a visible game window or bring one to the front; a
+  check only a person can make goes in the PR as a hand test for the maintainer.
 - Automated tests play the game's real levels only perfectly: a route planned against
   the level's own obstacle data and replayed through the real `Game` or `headless.play`
   without touching a dot, as `tests/test_perfect_run.py` does. Crude scripted play
