@@ -49,11 +49,11 @@ def test_every_direction_moves_at_player_speed(move):
 
 
 def test_running_out_of_moves_reports_the_last_step():
-    assert headless.play(box(), [Move.STAY] * 5) == Result(Ending.OUT_OF_MOVES, 5, SPAWN, 0)
+    assert headless.play(box(), [Move.STAY] * 5) == Result(Ending.OUT_OF_MOVES, 5, SPAWN, 0, (), False)
 
 
 def test_no_moves_ends_at_the_start():
-    assert headless.play(box(), []) == Result(Ending.OUT_OF_MOVES, 0, SPAWN, 0)
+    assert headless.play(box(), []) == Result(Ending.OUT_OF_MOVES, 0, SPAWN, 0, (), False)
 
 
 def test_a_dot_touching_the_player_ends_the_run_where_it_happened():
@@ -62,20 +62,31 @@ def test_a_dot_touching_the_player_ends_the_run_where_it_happened():
     # at 89.5, on step 69.
     dot = horizontal(y=115, from_x=20.5, to_x=180.5, speed=engine.FPS)
 
-    assert headless.play(box(OBSTACLES=[dot]), [Move.STAY] * 200) == Result(Ending.DIED, 69, SPAWN, 0)
+    assert headless.play(box(OBSTACLES=[dot]), [Move.STAY] * 200) == Result(Ending.DIED, 69, SPAWN, 0, (), False)
 
 
 def test_a_death_reports_the_coins_collected_before_it():
     dot = horizontal(y=115, from_x=20.5, to_x=180.5, speed=engine.FPS)
     level = box(OBSTACLES=[dot], COINS=[(115, 115), (20, 20)])
 
-    assert headless.play(level, [Move.STAY] * 200) == Result(Ending.DIED, 69, SPAWN, 1)
+    assert headless.play(level, [Move.STAY] * 200) == Result(Ending.DIED, 69, SPAWN, 1, ((20, 20),), False)
 
 
 def test_beating_the_level_ends_the_run_on_that_step():
     level = box(GOAL=((90, 90), (140, 140)), COINS=[(115, 115)])
 
-    assert headless.play(level, [Move.STAY] * 10) == Result(Ending.BEATEN, 1, SPAWN, 1)
+    assert headless.play(level, [Move.STAY] * 10) == Result(Ending.BEATEN, 1, SPAWN, 1, (), False)
+
+
+def test_a_run_reports_whether_it_reached_the_checkpoint():
+    # A checkpoint along the top wall, 20px above the spawn, and one at the far
+    # left, out of reach of a player going straight up.
+    top = box(CHECKPOINT=((80, 0), (140, 80)))
+    far = box(CHECKPOINT=((0, 0), (40, 200)))
+
+    assert headless.play(top, [Move.STAY] * 5).reached_checkpoint is False
+    assert headless.play(top, [Move.UP] * 20).reached_checkpoint is True
+    assert headless.play(far, [Move.UP] * 20).reached_checkpoint is False
 
 
 def test_a_move_slides_along_a_wall_as_the_keyboard_does():
