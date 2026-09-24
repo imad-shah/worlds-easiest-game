@@ -13,8 +13,8 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   (fixed key sequences that walk into walls or dots) on real levels is not wanted.
   Small test-only levels built for one check may each exercise one runner result
   (a death, running out of moves, a coin, sliding along a wall), as `tests/test_headless.py`
-  does, and training the learner end to end runs only on such a level, as
-  `tests/test_evolve.py` does. Hand playtesting of the real game (collisions and
+  does, and training the learner end to end runs only on such levels (two in a
+  row, one with a coin, to cover moving on), as `tests/test_evolve.py` does. Hand playtesting of the real game (collisions and
   resets, coins, goals, moving between levels, clicking through screens) stays with
   the maintainer; otherwise automated tests cover static facts and pure helpers.
 - Game logic advances only in fixed steps of `engine.STEP`, and the rules of a level

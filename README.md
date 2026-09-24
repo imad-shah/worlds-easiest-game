@@ -47,47 +47,70 @@ as fast as the machine allows, one move per game step (1/120 of a second). A mov
 is one of the eight directions or standing still (`headless.Move`), and moves the
 player exactly as holding those keys would. The run ends at the first death, on
 beating the level, or when the moves run out, and the result reports which, the
-step it ended on, the player's final position, and the coins collected. The
-same moves on the same level always end the same way.
+step it ended on, the player's final position, the coins collected and the ones
+still out, and whether the player reached the level's checkpoint. The same moves
+on the same level always end the same way.
 
 `headless.play_all(level, move_lists)` plays many lists at once, stepping the
 runs together so they share one set of dots, and reports each run as `play`
 would. `headless.Runs(level, move_lists)` plays them the same way one step at a
 time, so they can be drawn as they go.
 
-### Teaching an AI to beat level 1
+### Teaching an AI to beat the game
 
 ```
 uv run worlds-easiest-game train 300
 ```
 
-trains a population of 300 characters to beat level 1, with no window, as fast
-as the machine allows. A character plays by movement alone, from its own list of
-moves (one of the eight directions or standing still, each held for 12 steps,
-a tenth of a second), until it dies, beats the level, or its moves run out. The
-first generation's lists are 10 random moves long, and each generation adds 3
-more, up to the level's time limit (15 seconds on level 1).
+trains a population of 300 characters to beat every level in turn, with no
+window, as fast as the machine allows. A character plays by movement alone, from
+its own list of moves (one of the eight directions or standing still, each held
+for 12 steps, a tenth of a second), until it dies, beats the level, or its moves
+run out. The first generation's lists are 10 random moves long, and each
+generation adds 3 more, up to the level's time limit. Each level has its own,
+at least twice as long as a perfect run of it takes: 15 seconds on level 1, and
+up to 50 seconds on level 6.
 
 After each generation, every character is scored by where its run ended: how far
-it still had to walk to the goal along the corridors, never through a wall.
-Beating the level scores highest, and higher the sooner it happens. Dying scores
-a little less than stopping at the same place, but less than a tile of progress
-is worth, so pushing on beats hanging back. The best character carries over to
-the next generation unchanged, so the best score never drops, and the rest are
-children of characters picked more often the better they scored, each a copy of
-its parent's moves with 1.5% of them changed at random.
+it still had to walk along the corridors, never through a wall, to its next
+target. On a level with coins the goal only counts once every coin is collected,
+so the targets are the coins it has not collected yet, whichever is the shortest
+walk away, and then the goal. On level 9 the checkpoint is a target too, until
+the character reaches it. Every coin collected, and the checkpoint reached, is a
+large step up in score: a character that has reached one more target always
+scores above one that has not, wherever each ended. Beating the level scores
+highest, and higher the sooner it happens. Dying scores a little less than
+stopping at the same place, but less than a tile of progress is worth, so
+pushing on beats hanging back. The best character carries over to the next
+generation unchanged, so the best score never drops, and the rest are children
+of characters picked more often the better they scored, each a copy of its
+parent's moves with 1.5% of them changed at random.
 
-Each generation prints one line: its number, the best score, how far from the
-goal the best character ended, how many characters died, and whether one beat
-the level. Training stops when one does, naming the generation and the length of
-the winning list, or after `--generations` (1000 unless given), exiting with
-status 1. The same `--seed` always trains the same way; without one a random
-seed is used, and printed. `train --help` lists the other settings: `--mutation`,
-`--hold`, `--first-moves`, `--growth`, `--time-limit`, and how much each scoring
-rule counts (`--progress-weight`, `--death-penalty`, `--speed-weight`).
+Learning goes level by level. Once a character beats a level, its winning moves
+are kept as that level's solution, and a new population starts on the next
+level, from its spawn. Once the last level is beaten, the kept solutions together
+are one run of the whole game, and the command replays it end to end, level by
+level, printing when each level was beaten again and how long the whole game
+took.
 
-With 300 characters a generation takes about a quarter of a second, and the
-defaults usually beat level 1 within 30 generations, in under 10 seconds.
+Each level starts with a line naming it, and each generation prints one line:
+its number, the best score, how far the best character ended from its next
+target (and on a level with coins, how many it collected), how many characters
+died, and whether one beat the level. Beating a level prints the generation
+that did it, how long training on the level took, and the length of the winning
+list. Training stops once every level is beaten, or when a level has had
+`--generations` generations (1000 unless given) without being beaten, naming
+that level and exiting with status 1. The same `--seed` always trains the same
+way; without one a random seed is used, and printed. `train --help` lists the
+other settings: `--mutation`, `--hold`, `--first-moves`, `--growth`,
+`--time-limit` (which, if given, every level gets instead of its own), and how
+much each scoring rule counts (`--progress-weight`, `--death-penalty`,
+`--speed-weight`).
+
+With 300 characters, the defaults usually beat level 1 within 30 generations,
+in under 10 seconds, and level 2 within about a minute. They do not beat the
+whole game yet: training stops at level 3, where no character finds its way out
+through the moving gap in the ring of dots.
 `uv run python game/main.py train 300` does the same.
 
 ### Watching it learn
@@ -96,17 +119,20 @@ defaults usually beat level 1 within 30 generations, in under 10 seconds.
 uv run worlds-easiest-game train 300 --watch
 ```
 
-trains the same way, taking the same options, but in the game window, on
-level 1 as the game draws it. Every character of the generation plays at once,
+trains the same way, taking the same options, but in the game window, on each
+level as the game draws it. Every character of the generation plays at once,
 at the game's normal speed, each drawn as the red player square; a character
-that dies disappears. A generation ends once every character has died or used
-up its moves, and the next one starts straight away, so the first generations,
-with their short lists, flash by in about a second each and later ones run
-longer. These are the very runs the learner scores and breeds from.
+that dies disappears. A coin is drawn until every character drawn has collected
+it. A generation ends once every character has died or used up its moves, and
+the next one starts straight away, so the first generations, with their short
+lists, flash by in about a second each and later ones run longer. Once a
+character beats the level, the window moves on to the next level, and a new
+population starts there. These are the very runs the learner scores and breeds
+from.
 
-Instead of the top bar, white text at the top left shows the generation, how
-many of its characters are still alive, and how many steps its run has taken,
-with a hint line for the keys:
+Instead of the top bar, a line of white text at the top left shows the level
+being learned, the generation, how many of its characters are still alive, and
+how many steps its run has taken, with a hint line for the keys under it:
 
 - F switches to fast mode, which trains as fast as the machine allows and only
   draws where training has got to every thirtieth of a second, and back.
@@ -114,11 +140,14 @@ with a hint line for the keys:
   The readout still counts the whole generation. The best one is the best
   character of the generation before, which the learner carries over unchanged,
   until a dot touches it; before there is one (in the first generation) or once
-  it has died, it is whichever character still alive is closest to the goal
-  along the corridors.
+  it has died, it is whichever character still alive is closest to beating the
+  level, by the same measure it is scored by.
 - Q, or closing the window, quits.
 
-Once a character beats level 1, the window replays its winning run alone from
-the start, at normal speed, and then shows where it ended until you quit. The
-command still prints a line per generation, and exits with status 1 if no
-character had beaten the level by the time the window closed.
+Once the last level is beaten, the window replays the whole game from the kept
+solutions, each level's winning run in turn from level 1 to the last, at
+normal speed, and then shows where the last one ended until you quit. If a
+level is not beaten within `--generations` generations, training stops there,
+on that level. The command still prints the same lines as
+without `--watch`, and exits with status 1 unless every level was beaten by the
+time the window closed.
