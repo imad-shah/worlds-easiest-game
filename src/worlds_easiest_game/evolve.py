@@ -103,10 +103,11 @@ class Settings:
         checks = [
             (self.population >= 2, 'the population must be at least 2'),
             (0 <= self.mutation <= 1, 'the mutation rate must be between 0 and 1'),
-            (self.hold >= 1, 'a move must be held for at least 1 step'),
             (self.first_moves >= 1, 'the first lists must have at least 1 move'),
             (self.growth >= 0, 'the growth must not be negative'),
-            # A run is counted out step by step, so its steps must fit in a Python index.
+            # A run is counted out step by step, so a move's steps and the run's must fit in a Python index.
+            (1 <= self.hold <= sys.maxsize,
+             f'a move must be held for at least 1 step and at most {sys.maxsize} steps'),
             (self.time_limit is None or 0 < self.time_limit * engine.FPS <= sys.maxsize,
              f'the time limit must be positive and at most {sys.maxsize / engine.FPS:.3g} seconds'),
             (0 < self.progress_weight < math.inf, 'the progress weight must be positive and finite'),
