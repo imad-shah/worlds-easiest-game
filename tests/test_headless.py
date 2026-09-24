@@ -12,7 +12,7 @@ import pytest
 
 from worlds_easiest_game import engine, headless
 from worlds_easiest_game.headless import Ending, Move, Result
-from worlds_easiest_game.obstacles import horizontal
+from worlds_easiest_game.obstacles import horizontal, still
 
 SPAWN = (100, 100)
 
@@ -146,6 +146,24 @@ def test_shared_dots_never_move_back():
 
     with pytest.raises(ValueError):
         dots.at(4)
+
+
+def test_shared_dots_find_every_touch_that_checking_each_dot_finds():
+    # Dots in an X across two cell lines each way, on and either side of the
+    # lines, at whole and fractional pixels, and players placed all round them.
+    cell = engine.DOT_CELL
+    places = [cell * n + offset for n in (1, 2) for offset in (-12, -11, -10.5, -0.5, 0, 0.5, 10.5, 11, 12)]
+    dots = engine.Dots(box(OBSTACLES=[still(x, y) for x, y in [*zip(places, places), *zip(places, places[::-1])]]))
+    dots.at(1)
+
+    checks = []
+    for x in range(cell - 45, 2 * cell + 15):
+        for y in range(cell - 45, 2 * cell + 15, 3):
+            player = pygame.Rect((x, y), engine.PLAYER_SIZE)
+            touching = any(dot.touches(player) for dot in dots.moving)
+            assert dots.touch(player) == touching, player
+            checks.append(touching)
+    assert any(checks) and not all(checks)
 
 
 def test_runs_step_together_and_say_how_each_ended_as_it_ends():

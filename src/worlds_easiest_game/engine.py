@@ -28,6 +28,10 @@ STEP = 1 / FPS
 # a burst of steps to make it up.
 MAX_FRAME_TIME = 0.1
 PLAYER_SPEED = 240  # pixels per second
+# The side of the square cells the dots are sorted into, a step at a time, so a
+# player is only checked against the dots near them. Any size gives the same
+# answers; this one keeps a player within a few cells and few dots in each.
+DOT_CELL = 64  # px
 PLAYER_SIZE = (29, 29)
 WALL_THICKNESS = 6
 OBSTACLE_OUTLINE = 4.5  # of obstacles.RADIUS, measured from the original game
@@ -316,11 +320,17 @@ class Dots:
     set step in turn and each ask for the step they have reached, so only the
     first to ask moves the dots, once for all of them. No attempt can ask for a
     step the dots have already moved past.
+
+    `touch(rect)` says whether any dot touches a player where they are now. The
+    dots are sorted into square cells DOT_CELL wide once a step, the first time
+    it is asked, so each player is checked only against the dots in the cells it
+    overlaps, which are the only ones that can touch it.
     '''
 
     def __init__(self, level):
         self.moving = obstacles.spawn(level.OBSTACLES)
         self.steps = 0
+        self.cells = None  # every dot, by each cell it reaches into, for this step
 
     def at(self, steps):
         if steps < self.steps:
@@ -329,7 +339,28 @@ class Dots:
             for dot in self.moving:
                 dot.update(STEP)
             self.steps += 1
+            self.cells = None
         return self.moving
+
+    def touch(self, rect):
+        '''Whether any dot touches `rect`, as `obstacles.MovingObstacle.touches` tests it.'''
+        if self.cells is None:
+            self.cells = {}
+            for dot in self.moving:
+                x, y = dot.center
+                for column in range(math.floor((x - obstacles.RADIUS) / DOT_CELL),
+                                    math.floor((x + obstacles.RADIUS) / DOT_CELL) + 1):
+                    for row in range(math.floor((y - obstacles.RADIUS) / DOT_CELL),
+                                     math.floor((y + obstacles.RADIUS) / DOT_CELL) + 1):
+                        self.cells.setdefault((column, row), []).append(dot)
+        # A dot touches the rect at a point of the rect within RADIUS of its
+        # center, so that point is in a cell both the rect and the dot reach into.
+        for column in range(rect.left // DOT_CELL, rect.right // DOT_CELL + 1):
+            for row in range(rect.top // DOT_CELL, rect.bottom // DOT_CELL + 1):
+                for dot in self.cells.get((column, row), ()):
+                    if dot.touches(rect):
+                        return True
+        return False
 
 
 class Attempt:
@@ -381,8 +412,8 @@ class Attempt:
         '''Advance one STEP. With `god_mode` on, touching a dot does nothing.'''
         self.steps += 1
         move_player(self.pos, self.player, velocity.x * STEP, velocity.y * STEP, self.walls)
-        dots = self.dots.at(self.steps)
-        if not god_mode and any(dot.touches(self.player) for dot in dots):
+        self.dots.at(self.steps)
+        if not god_mode and self.dots.touch(self.player):
             self.died = True
             return
         if self.checkpoint and self.player.colliderect(self.checkpoint):
