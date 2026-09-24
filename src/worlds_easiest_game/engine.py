@@ -301,6 +301,30 @@ class Screen:
         screen.blit(self.surface, (0, 0))
 
 
+class Dots:
+    '''A level's dots, moving, which any number of attempts started together can share.
+
+    `at(steps)` moves every dot on to where it is once `steps` STEPs have run
+    since the start, one STEP at a time, and returns them. Attempts sharing one
+    set step in turn and each ask for the step they have reached, so only the
+    first to ask moves the dots, once for all of them. No attempt can ask for a
+    step the dots have already moved past.
+    '''
+
+    def __init__(self, level):
+        self.moving = obstacles.spawn(level.OBSTACLES)
+        self.steps = 0
+
+    def at(self, steps):
+        if steps < self.steps:
+            raise ValueError(f'the dots have already moved past step {steps}, to step {self.steps}')
+        while self.steps < steps:
+            for dot in self.moving:
+                dot.update(STEP)
+            self.steps += 1
+        return self.moving
+
+
 class Attempt:
     '''One try at a level by its rules alone, from the spawn until it ends.
 
@@ -317,13 +341,18 @@ class Attempt:
     has been on it, `respawn`, where a death puts them back, is centered on it
     instead of on the attempt's spawn; everything else a death resets is unchanged.
 
+    An attempt moves its own `dots` unless given a set of `Dots` to share with
+    other attempts started at the same time; the dots are where they would be
+    for this attempt alone either way, since they never depend on the player.
+
     Nothing here draws or needs a display, so an attempt can be stepped without a
     window, as fast as the machine allows. The window plays a level as a series of
-    attempts, through `Play`, and `headless.play` runs a single one, so both follow
-    the same rules.
+    attempts, through `Play`, and `headless.play` runs a single one (and
+    `headless.play_all` many at once, sharing their `Dots`), so all follow the
+    same rules.
     '''
 
-    def __init__(self, level, spawn=None):
+    def __init__(self, level, spawn=None, dots=None):
         spawn = level.PLAYER_SPAWN if spawn is None else spawn
         self.level = level
         self.walls = level_walls(level)
@@ -333,7 +362,7 @@ class Attempt:
         self.respawn = spawn  # where a death puts the player back
         self.pos = pygame.Vector2(spawn)  # where the player is, to the fraction
         self.player = pygame.Rect(spawn, PLAYER_SIZE)
-        self.dots = obstacles.spawn(level.OBSTACLES)
+        self.dots = Dots(level) if dots is None else dots
         self.coins = list(level.COINS)
         self.steps = 0
         self.died = False
@@ -343,9 +372,8 @@ class Attempt:
         '''Advance one STEP. With `god_mode` on, touching a dot does nothing.'''
         self.steps += 1
         move_player(self.pos, self.player, velocity.x * STEP, velocity.y * STEP, self.walls)
-        for dot in self.dots:
-            dot.update(STEP)
-        if not god_mode and any(dot.touches(self.player) for dot in self.dots):
+        dots = self.dots.at(self.steps)
+        if not god_mode and any(dot.touches(self.player) for dot in dots):
             self.died = True
             return
         if self.checkpoint and self.player.colliderect(self.checkpoint):
@@ -403,7 +431,7 @@ class Play:
             draw_centered(screen, self.coin_sprite, coin)
         pygame.draw.rect(screen, RED, attempt.player)
         pygame.draw.rect(screen, BLACK, attempt.player, 5)
-        for dot in attempt.dots:
+        for dot in attempt.dots.moving:
             draw_centered(screen, self.obstacle_sprite, dot.center)
         if self.god_mode:
             # Bottom left, the one corner every course stays clear of.

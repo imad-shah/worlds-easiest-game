@@ -49,3 +49,42 @@ player exactly as holding those keys would. The run ends at the first death, on
 beating the level, or when the moves run out, and the result reports which, the
 step it ended on, the player's final position, and the coins collected. The
 same moves on the same level always end the same way.
+
+`headless.play_all(level, move_lists)` plays many lists at once, stepping the
+runs together so they share one set of dots, and reports each run as `play`
+would.
+
+### Teaching an AI to beat level 1
+
+```
+uv run worlds-easiest-game train 300
+```
+
+trains a population of 300 characters to beat level 1, with no window, as fast
+as the machine allows. A character plays by movement alone, from its own list of
+moves (one of the eight directions or standing still, each held for 12 steps,
+a tenth of a second), until it dies, beats the level, or its moves run out. The
+first generation's lists are 10 random moves long, and each generation adds 3
+more, up to the level's time limit (15 seconds on level 1).
+
+After each generation, every character is scored by where its run ended: how far
+it still had to walk to the goal along the corridors, never through a wall.
+Beating the level scores highest, and higher the sooner it happens. Dying scores
+a little less than stopping at the same place, but less than a tile of progress
+is worth, so pushing on beats hanging back. The best character carries over to
+the next generation unchanged, so the best score never drops, and the rest are
+children of characters picked more often the better they scored, each a copy of
+its parent's moves with 1.5% of them changed at random.
+
+Each generation prints one line: its number, the best score, how far from the
+goal the best character ended, how many characters died, and whether one beat
+the level. Training stops when one does, naming the generation and the length of
+the winning list, or after `--generations` (1000 unless given), exiting with
+status 1. The same `--seed` always trains the same way; without one a random
+seed is used, and printed. `train --help` lists the other settings: `--mutation`,
+`--hold`, `--first-moves`, `--growth`, `--time-limit`, and how much each scoring
+rule counts (`--progress-weight`, `--death-penalty`, `--speed-weight`).
+
+With 300 characters a generation takes about a quarter of a second, and the
+defaults usually beat level 1 within 30 generations, in under 10 seconds.
+`uv run python game/main.py train 300` does the same.
