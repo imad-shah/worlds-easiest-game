@@ -8,6 +8,7 @@ here opens a window or needs a display.
 
 import math
 import random
+import sys
 from types import SimpleNamespace
 
 import pygame
@@ -202,6 +203,7 @@ def test_each_move_is_held_and_the_run_cut_off_at_the_time_limit():
 
 @pytest.mark.parametrize('bad', [
     dict(population=1), dict(mutation=1.5), dict(hold=0), dict(first_moves=0), dict(growth=-1),
+    dict(hold=sys.maxsize + 1),  # more steps than can be counted
     dict(time_limit=0), dict(time_limit=math.inf), dict(time_limit=math.nan),
     dict(time_limit=1e17),  # more steps than can be counted
     dict(progress_weight=0), dict(progress_weight=math.inf), dict(death_penalty=1),
