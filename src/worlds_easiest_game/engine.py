@@ -345,8 +345,9 @@ class Attempt:
     `steps` counts the steps taken.
 
     A level may name one safe zone its CHECKPOINT. Once any part of the player
-    has been on it, `respawn`, where a death puts them back, is centered on it
-    instead of on the attempt's spawn; everything else a death resets is unchanged.
+    has been on it, `reached_checkpoint` is true and `respawn`, where a death
+    puts them back, is centered on it instead of on the attempt's spawn;
+    everything else a death resets is unchanged.
 
     An attempt moves its own `dots` unless given a set of `Dots` to share with
     other attempts started at the same time; the dots are where they would be
@@ -371,6 +372,7 @@ class Attempt:
         self.player = pygame.Rect(spawn, PLAYER_SIZE)
         self.dots = Dots(level) if dots is None else dots
         self.coins = list(level.COINS)
+        self.reached_checkpoint = False
         self.steps = 0
         self.died = False
         self.beaten = False
@@ -384,6 +386,7 @@ class Attempt:
             self.died = True
             return
         if self.checkpoint and self.player.colliderect(self.checkpoint):
+            self.reached_checkpoint = True
             self.respawn = centered_spawn(self.checkpoint)
         self.coins = [coin for coin in self.coins
                       if not obstacles.circle_touches_rect(coin, COIN_RADIUS, self.player)]

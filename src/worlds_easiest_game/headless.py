@@ -5,7 +5,7 @@ nothing at all. `play` runs a level's `engine.Attempt` one move per step, as fas
 as the machine allows, and reports how the run ended:
 
     result = headless.play(levels.LEVELS[0], [Move.RIGHT, Move.RIGHT, Move.DOWN_RIGHT, ...])
-    result.ending, result.step, result.position, result.coins
+    result.ending, result.step, result.position, result.coins, result.coins_out
 
 `play_all` plays many lists of moves on one level at once and reports each run
 just as `play` would. `Runs` plays them the same way one step at a time, the
@@ -65,6 +65,8 @@ class Result:
     step: int  # the step it ended on, counting from 1; 0 if it had no moves
     position: tuple  # the player's top-left corner then, in play-area pixels
     coins: int  # coins collected by then
+    coins_out: tuple  # the centers of the coins not collected by then, in the level's order
+    reached_checkpoint: bool  # whether the player had been on the level's CHECKPOINT by then
 
 
 def play(level, moves):
@@ -142,5 +144,10 @@ class Runs:
         '''Play every run to its end, and report each one as `play` would.'''
         while not self.over:
             self.step()
-        return [Result(ending, attempt.steps, attempt.player.topleft, attempt.coins_collected)
-                for ending, attempt in zip(self.endings, self.attempts)]
+        return [result(ending, attempt) for ending, attempt in zip(self.endings, self.attempts)]
+
+
+def result(ending, attempt):
+    '''The `Result` of a run that ended as `ending`, with `attempt` where it ended.'''
+    return Result(ending, attempt.steps, attempt.player.topleft, attempt.coins_collected,
+                  tuple(attempt.coins), attempt.reached_checkpoint)
