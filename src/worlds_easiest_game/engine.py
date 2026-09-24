@@ -1,4 +1,5 @@
 import math
+import time
 
 import pygame
 
@@ -491,13 +492,21 @@ def run(levels, dev=False):
     '''
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, WINDOW_HEIGHT))
-    clock = pygame.time.Clock()
     game = Game(levels, dev)
     coords = []
     unstepped = 0.0  # real time drawn frames have taken that no step has covered yet
+    last_frame = time.perf_counter()
 
     while game.running:
-        unstepped += min(clock.tick(FPS) / 1000, MAX_FRAME_TIME)
+        # Wait until the next step is due, timed finer than the whole milliseconds
+        # pygame.time.Clock rounds to, so a frame runs exactly one step whenever
+        # the machine keeps up rather than drifting against STEP.
+        now = time.perf_counter()
+        while unstepped + (now - last_frame) < STEP:
+            time.sleep(STEP - (unstepped + (now - last_frame)))
+            now = time.perf_counter()
+        unstepped += min(now - last_frame, MAX_FRAME_TIME)
+        last_frame = now
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
