@@ -265,6 +265,16 @@ class TopBar:
             screen.blit(label, (placed.x - ink.x, top))
 
 
+def draw_button(surface, button, label=None, font=None):
+    '''Draw a green button filling `button`, a Rect, outlined in black like the
+    walls and, if given a `label`, labelled with it in black in `font`.'''
+    pygame.draw.rect(surface, GREEN, button)
+    pygame.draw.rect(surface, BLACK, button, WALL_THICKNESS)
+    if label:
+        text = font.render(label, True, BLACK)
+        surface.blit(text, text.get_rect(center=button.center))
+
+
 class Screen:
     '''A full-window card shown outside a level: a title over a row of buttons.
 
@@ -274,26 +284,25 @@ class Screen:
 
     BUTTON_SIZE = (220, 70)
     BUTTON_GAP = 40
+    TITLE_FONT_SIZE = 84
+    BUTTON_FONT_SIZE = 48
 
     def __init__(self, title, labels):
         self.surface = pygame.Surface((SCREEN_WIDTH, WINDOW_HEIGHT))
         self.surface.fill(BACKGROUND)
         middle = WINDOW_HEIGHT // 2
-        title = pygame.font.Font(None, 84).render(title, True, BLACK)
+        title = pygame.font.Font(None, self.TITLE_FONT_SIZE).render(title, True, BLACK)
         self.surface.blit(title, title.get_rect(center=(SCREEN_WIDTH // 2, middle - 70)))
 
         width, height = self.BUTTON_SIZE
         row = len(labels) * width + (len(labels) - 1) * self.BUTTON_GAP
         left = (SCREEN_WIDTH - row) // 2
-        font = pygame.font.Font(None, 48)
+        font = pygame.font.Font(None, self.BUTTON_FONT_SIZE)
         self.buttons = {}
         for i, label in enumerate(labels):
             button = pygame.Rect(left + i * (width + self.BUTTON_GAP), 0, width, height)
             button.centery = middle + 60
-            pygame.draw.rect(self.surface, GREEN, button)
-            pygame.draw.rect(self.surface, BLACK, button, WALL_THICKNESS)
-            text = font.render(label, True, BLACK)
-            self.surface.blit(text, text.get_rect(center=button.center))
+            draw_button(self.surface, button, label, font)
             self.buttons[label] = button
         self.surface = self.surface.convert()
 
@@ -479,85 +488,6 @@ class Play:
                         self.god_mode_label.get_rect(bottomleft=(16, SCREEN_HEIGHT - 16)))
 
 
-class Game:
-    '''The states the game can be in: the menu it opens on, each level in turn,
-    and the win screen after the last one.
-
-    Only the current state is updated, and each level starts fresh when it is
-    entered, so nothing moves while a screen is up. A level is drawn under the
-    top bar; the menu and win screens fill the window.
-
-    `deaths` counts every death since Start or Restart, across levels.
-
-    With `dev` on, pressing T in a level toggles god mode, which stays as set
-    across levels and restarts.
-    '''
-
-    def __init__(self, levels, dev=False):
-        self.levels = levels
-        self.dev = dev
-        self.god_mode = False
-        self.menu = Screen(TITLE, ['START'])  # what the game opens on
-        self.won = Screen('You Won!', ['RESTART', 'QUIT'])  # after the last level
-        self.bar = TopBar()
-        self.play = None
-        self.state = self.menu
-        self.running = True
-
-    @property
-    def deaths(self):
-        return self.play.deaths if self.play else 0
-
-    def start_level(self, index):
-        '''Play level `index`, carrying the death count on from the level before it.'''
-        self.level_index = index
-        self.play = Play(self.levels[index], self.deaths if index else 0)
-        self.play.god_mode = self.god_mode
-        self.state = self.play
-
-    def toggle_god_mode(self):
-        self.god_mode = not self.god_mode
-        if self.play:
-            self.play.god_mode = self.god_mode
-
-    def handle(self, event):
-        if (self.dev and self.state is self.play
-                and event.type == pygame.KEYDOWN and event.key == pygame.K_t):
-            self.toggle_god_mode()
-        elif self.state is self.menu and self.menu.clicked(event) == 'START':
-            self.start_level(0)
-        elif self.state is self.won:
-            choice = self.won.clicked(event)
-            if choice == 'RESTART':
-                self.start_level(0)
-            elif choice == 'QUIT':
-                self.running = False
-
-    def update(self, keys):
-        '''Advance the current state one STEP with `keys` held.'''
-        self.state.update(keys)
-        if self.state is self.play and self.play.finished:
-            if self.level_index + 1 < len(self.levels):
-                self.start_level(self.level_index + 1)
-            else:
-                self.state = self.won
-
-    def advance(self, keys, steps):
-        '''Run `steps` STEPs of the current state with `keys` held, as a frame of `drive` does.'''
-        for _ in range(steps):
-            self.update(keys)
-
-    def draw(self, screen):
-        '''Draw the current state onto `screen`, the whole window.'''
-        if self.state is not self.play:
-            self.state.draw(screen)
-            return
-        level = self.play.level
-        self.bar.draw(screen, coin_text(self.play.attempt.coins_collected, len(level.COINS)),
-                      level_text(self.level_index + 1, len(self.levels)), death_text(self.deaths))
-        self.play.draw(screen.subsurface(PLAY_AREA))
-
-
 def open_window():
     '''Start pygame and open the game window, titled with the game's name.'''
     pygame.init()
@@ -610,13 +540,3 @@ def drive(game, screen):
         game.advance(keys, steps)
         game.draw(screen)
         pygame.display.flip()
-
-
-def run(levels, dev=False):
-    '''Open the game on its menu; starting from there plays `levels` in order.
-
-    `dev` turns on the developer-only keys: T toggles god mode.
-    '''
-    screen = open_window()
-    drive(Game(levels, dev), screen)
-    pygame.quit()

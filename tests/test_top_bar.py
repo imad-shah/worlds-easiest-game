@@ -9,7 +9,7 @@ import os
 import pygame
 import pytest
 
-from worlds_easiest_game import engine, levels
+from worlds_easiest_game import app, engine, levels
 from worlds_easiest_game.levels import level1
 
 
@@ -92,7 +92,7 @@ def test_labels_are_white(bar):
 
 
 def draw_level(god_mode):
-    game = engine.Game(levels.LEVELS)
+    game = app.Game(levels.LEVELS)
     game.start_level(0)
     game.play.god_mode = god_mode
     window = pygame.Surface((engine.SCREEN_WIDTH, engine.WINDOW_HEIGHT))
@@ -125,7 +125,7 @@ def test_god_mode_label_sits_in_the_play_area_clear_of_the_bar(display):
 
 
 def test_menu_and_win_screens_fill_the_window(display):
-    game = engine.Game(levels.LEVELS)
+    game = app.Game(levels.LEVELS)
     for screen in (game.menu, game.won):
         assert screen.surface.get_size() == (engine.SCREEN_WIDTH, engine.WINDOW_HEIGHT)
         for button in screen.buttons.values():

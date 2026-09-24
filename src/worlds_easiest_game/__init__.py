@@ -7,14 +7,13 @@ calls the same function.
 import argparse
 import dataclasses
 import os
-import random
 import sys
 
 # pygame prints a banner the first time it is imported unless this is set; the
 # game's own modules all import it, so it is set before any of them load.
 os.environ.setdefault('PYGAME_HIDE_SUPPORT_PROMPT', '1')
 
-from worlds_easiest_game import engine, evolve, levels, watch  # noqa: E402
+from worlds_easiest_game import app, evolve, levels, watch  # noqa: E402
 
 # The learner's settings the `train` command offers, each with what it sets.
 TRAINING_OPTIONS = {
@@ -28,7 +27,6 @@ TRAINING_OPTIONS = {
     'death_cost': (float, 'tiles further from its target a run that died counts as'),
     'time_limit': (float, 'seconds a character has on each level (default: each level\'s own)'),
 }
-DEFAULT_GENERATIONS = 1000
 
 
 def parse_args(argv=None):
@@ -51,7 +49,7 @@ def parse_args(argv=None):
     train.add_argument('--watch', action='store_true',
                        help='train in the game window, drawing every character as it plays')
     train.add_argument('--seed', type=int, help='seed to train from; random, and printed, unless given')
-    train.add_argument('--generations', type=int, default=DEFAULT_GENERATIONS,
+    train.add_argument('--generations', type=int, default=evolve.DEFAULT_GENERATIONS,
                        help='give up after this many generations on one level (default: %(default)s)')
     defaults = {field.name: field.default for field in dataclasses.fields(evolve.Settings)}
     for name, (kind, help) in TRAINING_OPTIONS.items():
@@ -75,9 +73,7 @@ def parse_args(argv=None):
 def train(args):
     '''Train on every level in turn as `args` says, in the window with `--watch`;
     whether every level was beaten.'''
-    seed = random.randrange(2 ** 32) if args.seed is None else args.seed
-    print(f'Training on all {len(levels.LEVELS)} levels in turn: '
-          f'{args.settings.population} characters a generation, seed {seed}.')
+    seed = evolve.announce(levels.LEVELS, args.settings, args.seed)
     learn = watch.run if args.watch else evolve.train
     return learn(levels.LEVELS, args.settings, seed, args.generations).beaten
 
@@ -88,4 +84,4 @@ def main(argv=None) -> None:
         if not train(args):
             raise SystemExit(1)
     else:
-        engine.run(levels.LEVELS, dev=args.dev)
+        app.run(levels.LEVELS, dev=args.dev)

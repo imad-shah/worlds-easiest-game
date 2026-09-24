@@ -55,6 +55,10 @@ MOVES = list(Move)
 NEIGHBOURS = [(dx, dy, math.hypot(dx, dy)) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy]
 # The least that reaching a target (a coin or the checkpoint) multiplies a run's closeness by.
 STEP_UP = 2
+MIN_POPULATION = 2  # the fewest characters a generation can have
+# The population the default settings are tuned for, which beats the whole game with them.
+DEFAULT_POPULATION = 300
+DEFAULT_GENERATIONS = 1000  # generations a level gets, unless told otherwise, before training gives up
 
 
 class Floor:
@@ -254,7 +258,7 @@ class Settings:
 
     def __post_init__(self):
         checks = [
-            (self.population >= 2, 'the population must be at least 2'),
+            (self.population >= MIN_POPULATION, f'the population must be at least {MIN_POPULATION}'),
             (self.first_moves >= 1, 'the first lists must have at least 1 move'),
             (self.growth >= 1, 'the growth must be at least 1 move'),
             (self.backtrack >= 0, 'the backtrack must not be negative'),
@@ -613,6 +617,15 @@ class Log:
                   f'{duration(time.perf_counter() - self.started)} of training.', flush=True)
         elif training.stuck is not None:
             print(f'Level {training.level_number} not beaten in {training.cap} generations.', flush=True)
+
+
+def announce(levels, settings, seed=None):
+    '''Pick a random seed unless given one, and print what training on `levels`
+    as `settings` says is about to do, with the seed; returns the seed.'''
+    seed = random.randrange(2 ** 32) if seed is None else seed
+    print(f'Training on all {len(levels)} levels in turn: '
+          f'{settings.population} characters a generation, seed {seed}.', flush=True)
+    return seed
 
 
 def train(levels, settings, seed, cap):

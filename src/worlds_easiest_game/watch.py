@@ -10,7 +10,8 @@ place of the top bar. F switches to fast mode and back, and B between drawing
 every character and only the one the round is following
 (`evolve.Round.leader`). Once the last level is beaten, the winning runs kept
 for every level are replayed one after another, the whole game in one run, and
-the last of them then stays on screen until the window is closed.
+the last of them then stays on screen until the window is closed. Started
+from the game's menu, Esc goes back to the menu at any point.
 '''
 
 import time
@@ -21,6 +22,8 @@ from worlds_easiest_game import engine, evolve
 
 FAST_KEY = pygame.K_f
 BEST_KEY = pygame.K_b
+MENU_KEY = pygame.K_ESCAPE  # back to the game's menu, when the watch was started from it
+MENU_HINT = 'Esc: back to menu'  # at the top right, when the watch was started from the menu
 # In fast mode each frame trains for this long, then draws where training has got to.
 FAST_FRAME = 1 / 30  # seconds
 READOUT_TOP = 8  # px from the window's top to the readout
@@ -63,9 +66,13 @@ class Watch:
     game's own pace, `replayed` being the one on screen; if a level plays `cap`
     generations without being beaten, training stops. Either way the last
     frame stays until the window is closed.
+
+    With `menu` on, the watch was started from the game's menu: MENU_HINT is
+    drawn at the top right, and pressing Esc at any point stops it `running`,
+    which sends the game back to the menu.
     '''
 
-    def __init__(self, levels, settings, seed, cap):
+    def __init__(self, levels, settings, seed, cap, menu=False):
         self.levels = levels
         self.learner = evolve.Training(levels, settings, seed, cap)
         self.log = evolve.Log(self.learner)
@@ -76,6 +83,7 @@ class Watch:
         self.given_up = False
         self.fast = False
         self.best_only = False
+        self.menu = menu
         self.running = True
         self.level_surfaces = [engine.build_level_surface(level, engine.level_walls(level)) for level in levels]
         self.obstacle_sprite = engine.build_obstacle_sprite()
@@ -93,7 +101,11 @@ class Watch:
         return self.learner.level_number - 1 if self.replayed is None else self.replayed
 
     def handle(self, event):
-        if self.training and event.type == pygame.KEYDOWN:
+        if event.type != pygame.KEYDOWN:
+            return
+        if self.menu and event.key == MENU_KEY:
+            self.running = False
+        elif self.training:
             if event.key == FAST_KEY:
                 self.fast = not self.fast
             elif event.key == BEST_KEY:
@@ -181,6 +193,14 @@ class Watch:
         draw_line(screen, self.font, readout(self.level_index + 1, len(self.levels), generation,
                                              len(self.runs.alive), self.runs.steps), READOUT_TOP)
         draw_line(screen, self.hint_font, self.hint(), self.hint_top)
+        if self.menu:
+            # On the numbers' baseline, its ink ending BAR_MARGIN from the window's
+            # right edge, as the top bar's right label does.
+            label = self.hint_font.render(MENU_HINT, True, engine.WHITE)
+            ink = label.get_bounding_rect()
+            baseline = READOUT_TOP + self.font.get_ascent()
+            screen.blit(label, (engine.SCREEN_WIDTH - engine.BAR_MARGIN - ink.right,
+                                baseline - self.hint_font.get_ascent()))
 
     @property
     def hint_top(self):

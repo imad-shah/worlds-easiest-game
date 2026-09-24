@@ -12,7 +12,7 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   offscreen to files. Never open a visible game window or bring one to the front; a
   check only a person can make goes in the PR as a hand test for the maintainer.
 - Automated tests play the game's real levels only perfectly: a route planned against
-  the level's own obstacle data and replayed through the real `Game` or `headless.play`
+  the level's own obstacle data and replayed through the real `app.Game` or `headless.play`
   without touching a dot, as `tests/test_perfect_run.py` does. Crude scripted play
   (fixed key sequences that walk into walls or dots) on real levels is not wanted.
   Small test-only levels built for one check may each exercise one runner result

@@ -9,7 +9,7 @@ import os
 import pygame
 import pytest
 
-from worlds_easiest_game import engine
+from worlds_easiest_game import app, engine
 from worlds_easiest_game.levels import level1
 
 
@@ -27,7 +27,7 @@ def press(key):
 
 
 def test_t_does_nothing_without_dev(display):
-    game = engine.Game([level1])
+    game = app.Game([level1])
     game.start_level(0)
     game.handle(press(pygame.K_t))
     assert not game.god_mode
@@ -35,7 +35,7 @@ def test_t_does_nothing_without_dev(display):
 
 
 def test_t_toggles_once_per_press_in_dev(display):
-    game = engine.Game([level1], dev=True)
+    game = app.Game([level1], dev=True)
     game.start_level(0)
     game.handle(press(pygame.K_t))
     assert game.play.god_mode
@@ -46,7 +46,7 @@ def test_t_toggles_once_per_press_in_dev(display):
 
 
 def test_t_is_ignored_off_a_level(display):
-    game = engine.Game([level1], dev=True)
+    game = app.Game([level1], dev=True)
     game.handle(press(pygame.K_t))
     assert not game.god_mode
 
