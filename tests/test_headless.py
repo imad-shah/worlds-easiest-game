@@ -93,3 +93,45 @@ def test_the_runner_needs_no_display():
     assert not pygame.display.get_init()
 
     assert headless.play(box(), [Move.RIGHT] * 3).position == (106, 100)
+
+
+def test_playing_runs_together_ends_each_one_as_playing_it_alone_would():
+    # The dot of the tests above, which touches a player standing at the spawn on
+    # step 69. The goal is just left of the spawn.
+    dot = horizontal(y=115, from_x=20.5, to_x=180.5, speed=engine.FPS)
+    level = box(OBSTACLES=[dot], GOAL=((40, 20), (60, 60)))
+    move_lists = [
+        [Move.STAY] * 200,  # dies
+        [Move.STAY] * 10,  # runs out of moves long before the others end
+        [],  # has none at all
+        [Move.UP] * 20 + [Move.LEFT] * 20,  # beats the level
+        [Move.UP] * 300,  # outlasts the dot along the top wall, then runs out
+        [Move.DOWN_RIGHT] * 200,  # slides along the walls into the corner
+    ]
+
+    together = headless.play_all(level, move_lists)
+
+    assert together == [headless.play(level, moves) for moves in move_lists]
+    assert {result.ending for result in together} == set(Ending)
+
+
+def test_attempts_sharing_dots_see_them_where_they_would_be_alone():
+    dot = horizontal(y=115, from_x=20.5, to_x=180.5, speed=engine.FPS)
+    level = box(OBSTACLES=[dot])
+    dots = engine.Dots(level)
+    sharing = [engine.Attempt(level, dots=dots) for _ in range(3)]
+    alone = engine.Attempt(level)
+    for _ in range(40):
+        for attempt in sharing + [alone]:
+            attempt.step(Move.STAY.velocity)
+
+    assert dots.steps == 40
+    assert [dot.center for dot in dots.moving] == [dot.center for dot in alone.dots.moving]
+
+
+def test_shared_dots_never_move_back():
+    dots = engine.Dots(box(OBSTACLES=[horizontal(y=50, from_x=20, to_x=180, speed=60)]))
+    dots.at(5)
+
+    with pytest.raises(ValueError):
+        dots.at(4)

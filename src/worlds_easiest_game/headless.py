@@ -7,6 +7,10 @@ as the machine allows, and reports how the run ended:
     result = headless.play(levels.LEVELS[0], [Move.RIGHT, Move.RIGHT, Move.DOWN_RIGHT, ...])
     result.ending, result.step, result.position, result.coins
 
+`play_all` plays many lists of moves on one level at once, the way a whole
+generation of learning characters plays (see `evolve`), and reports each run
+just as `play` would.
+
 A move reaches the attempt through `engine.read_input`, from the keys it holds,
 so it moves the player exactly as the keyboard does: diagonals no faster than
 straight lines, sliding along walls. The game logic advances only in fixed
@@ -67,14 +71,34 @@ def play(level, moves):
 
     The run ends at the first death, on beating the level, or when the moves run out.
     '''
-    attempt = engine.Attempt(level)
-    ending = Ending.OUT_OF_MOVES
-    for move in moves:
-        attempt.step(move.velocity)
-        if attempt.died:
-            ending = Ending.DIED
-            break
-        if attempt.beaten:
-            ending = Ending.BEATEN
-            break
-    return Result(ending, attempt.steps, attempt.player.topleft, attempt.coins_collected)
+    return play_all(level, [moves])[0]
+
+
+def play_all(level, move_lists):
+    '''Play `level` once from each list in `move_lists`, and report each run as `play` would.
+
+    The runs start together and take their steps in turn, sharing one set of
+    dots, so the dots move once a step for all of them instead of once for each.
+    A run that ends drops out while the rest play on.
+    '''
+    dots = engine.Dots(level)
+    attempts = [engine.Attempt(level, dots=dots) for _ in move_lists]
+    endings = [Ending.OUT_OF_MOVES] * len(attempts)
+    going = [(i, iter(moves)) for i, moves in enumerate(move_lists)]
+    while going:
+        still_going = []
+        for i, moves in going:
+            move = next(moves, None)
+            if move is None:
+                continue
+            attempt = attempts[i]
+            attempt.step(move.velocity)
+            if attempt.died:
+                endings[i] = Ending.DIED
+            elif attempt.beaten:
+                endings[i] = Ending.BEATEN
+            else:
+                still_going.append((i, moves))
+        going = still_going
+    return [Result(ending, attempt.steps, attempt.player.topleft, attempt.coins_collected)
+            for ending, attempt in zip(endings, attempts)]

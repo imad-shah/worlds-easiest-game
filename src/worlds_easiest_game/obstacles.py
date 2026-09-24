@@ -167,18 +167,21 @@ def cross(center, arms, dots_per_arm, spacing, speed, angle=0.0, inner=None, cen
 
 
 class MovingObstacle:
-    '''The live state of one declared obstacle: how long it has been moving.'''
+    '''The live state of one declared obstacle: how long it has been moving, and
+    where that puts it.
+
+    `center` is worked out once per `update`, not each time it is read, since
+    every player the dot is checked against reads it.
+    '''
 
     def __init__(self, obstacle):
         self.obstacle = obstacle
         self.elapsed = 0.0  # seconds, wrapped to the obstacle's period
+        self.center = obstacle.position(self.elapsed)
 
     def update(self, dt):
         self.elapsed = (self.elapsed + dt) % self.obstacle.period
-
-    @property
-    def center(self):
-        return self.obstacle.position(self.elapsed)
+        self.center = self.obstacle.position(self.elapsed)
 
     def touches(self, rect):
         '''Whether this dot overlaps `rect` (anything with left/top/right/bottom).'''
