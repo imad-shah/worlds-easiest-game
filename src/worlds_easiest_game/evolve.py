@@ -5,12 +5,15 @@ steps. A generation is a population of characters that all play a level
 together through `headless.Runs`, each until it dies, beats the level, or its
 moves run out, and is then scored. The next generation keeps the best
 character unchanged and fills the rest with children of the best-ranked
-characters (see `ranking`). A child plays its parent's moves up to a point a
-little before where its parent's run ended, then new random moves, up to a few
-past that end (see `child`): so learning picks up where each run got to, and
-tries something else just before where it died. The first generation's lists
-are short, and they grow only as far as the runs get, up to the level's time
-limit, so the early moves are worked out before the later ones matter:
+characters (see `ranking`). A child plays its parent's moves up to a random
+point at most a few moves before where its parent's run ended, then new random
+moves, up to a few past that end (see `child`): so learning picks up where
+each run got to, and usually tries something else shortly before where it
+died. It can replay its parent's ending instead, though, when it goes back no
+moves, or when its new moves repeat its parent's, as they often do along a
+straight dash. The first generation's lists are short, and they grow only as
+far as the runs get, up to the level's time limit, so the early moves are
+worked out before the later ones matter:
 
     for generation in evolve.generations(level, evolve.Settings(population=300), seed=1):
         generation.best_score, generation.best_distance, generation.deaths, generation.beaten
@@ -312,7 +315,7 @@ def child(parent, ended, settings, most, rng):
     '''A child of `parent`, whose run ended during its move `ended` (counting
     from 1), on a level whose lists hold at most `most` moves.
 
-    It keeps its parent's moves up to a point up to `settings.backtrack` moves
+    It keeps its parent's moves up to a point 0 to `settings.backtrack` moves
     before that end, picked at random, and plays new `random_moves` from there,
     up to `settings.growth` moves past it.
     '''
@@ -325,10 +328,11 @@ def ranking(results, scores, spot):
     '''Every character, by where it is in the generation's ranking, best first.
 
     A character ranks by its score, but only the best of those whose runs ended
-    in the same `spot`-px square of the level, with the same coins collected and
-    the checkpoint reached or not, ranks among the others; the rest of them come
-    after every such best one. So the best-ranked are spread over every place
-    the runs have got to, not crowded onto one.
+    in the same `spot`-px square of the level, with as many coins collected
+    (whichever coins they are) and the checkpoint reached or not, ranks among
+    the others; the rest of them come after every such best one. So the
+    best-ranked are spread over every place the runs have got to, not crowded
+    onto one.
     '''
     best_first = sorted(range(len(scores)), key=scores.__getitem__, reverse=True)
     spots, firsts, crowded = set(), [], []

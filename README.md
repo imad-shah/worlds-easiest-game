@@ -87,17 +87,20 @@ counts as getting further.
 The best character carries over to the next generation unchanged, so the best
 score never drops. The rest are children of the best-ranked fifth of the
 generation, each picking its parent from them at random. Characters rank by
-their scores, but of those whose runs ended in the same 20-pixel square, with
-the same coins collected and the checkpoint reached or not, only the best
-counts; the others rank after the best of every square. So the parents are
-spread over every place the runs got to, and the population does not crowd
-onto one dead end. A child plays its parent's moves up to a random point at
-most 5 moves before where its parent's run ended, then new random moves, up to
-3 past that end: it tries something else just before where its parent died, or
-carries on from where its parent ran out of moves. Each new random move repeats
-the one before it 60% of the time and is otherwise any of the nine, so straight
-dashes and long waits come up often. The first generation's lists are 10
-random moves long, and no list grows past the level's time limit.
+their scores, but of those whose runs ended in the same 20-pixel square, with as
+many coins collected (whichever coins they are) and the checkpoint reached or
+not, only the best counts; the others rank after the best of every square. So
+the parents are spread over every place the runs got to, and the population does
+not crowd onto one dead end. A child plays its parent's moves up to a random
+point at most 5 moves before where its parent's run ended, then new random
+moves, up to 3 past that end: it usually tries something else shortly before
+where its parent died, or carries on from where its parent ran out of moves. It
+can replay its parent's ending instead, though, when it goes back no moves, or
+when its new moves repeat its parent's, as they often do along a straight dash.
+Each new random move repeats the one before it 60% of the time and is otherwise
+any of the nine, so straight dashes and long waits come up often. The first
+generation's lists are 10 random moves long, and no list grows past the level's
+time limit.
 
 Learning goes level by level. Once a character beats a level, its winning moves
 are kept as that level's solution, and a new population starts on the next
