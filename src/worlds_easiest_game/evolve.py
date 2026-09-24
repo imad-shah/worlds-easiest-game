@@ -105,7 +105,8 @@ class Settings:
             (self.hold >= 1, 'a move must be held for at least 1 step'),
             (self.first_moves >= 1, 'the first lists must have at least 1 move'),
             (self.growth >= 0, 'the growth must not be negative'),
-            (self.time_limit is None or self.time_limit > 0, 'the time limit must be positive'),
+            (self.time_limit is None or 0 < self.time_limit < math.inf,
+             'the time limit must be positive and finite'),
             (self.progress_weight > 0, 'the progress weight must be positive'),
             (0 <= self.death_penalty < 1, 'the death penalty must be at least 0 and below 1'),
             (self.speed_weight >= 0, 'the speed weight must not be negative'),
@@ -133,6 +134,8 @@ def score(result, distance, limit, settings):
     closeness to the goal, `1 / (1 + tiles)` for the `distance` in floor tiles it
     still had to walk from where it ended, raised to the power `progress_weight`,
     which is below 1 anywhere off the goal; a death takes `death_penalty` of that away.
+    A steep `progress_weight` can shrink that to nothing far from the goal, so
+    it never goes below the smallest number above 0.
     '''
     if result.ending is Ending.BEATEN:
         return 1 + settings.speed_weight * (1 - result.step / limit)
@@ -140,7 +143,7 @@ def score(result, distance, limit, settings):
     points = closeness ** settings.progress_weight
     if result.ending is Ending.DIED:
         points *= 1 - settings.death_penalty
-    return points
+    return max(points, math.ulp(0.0))
 
 
 def child(parent, length, mutation, rng):

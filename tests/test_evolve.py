@@ -127,6 +127,15 @@ def test_dying_scores_slightly_below_running_out_of_time_at_the_same_place(tiles
     assert died > a_tile_back, 'hanging back a tile scores better than dying'
 
 
+def test_a_steep_progress_weight_still_scores_every_run_above_0():
+    settings = evolve.Settings(population=30, progress_weight=math.inf)
+    generations = evolve.generations(gate(), settings, seed=3)
+    first, second = next(generations), next(generations)
+
+    assert not first.beaten
+    assert min(first.scores + second.scores) > 0
+
+
 def test_the_best_character_carries_over_unchanged():
     rng = random.Random(1)
     characters = [rng.choices(evolve.MOVES, k=20) for _ in range(10)]
@@ -192,7 +201,8 @@ def test_each_move_is_held_and_the_run_cut_off_at_the_time_limit():
 
 @pytest.mark.parametrize('bad', [
     dict(population=1), dict(mutation=1.5), dict(hold=0), dict(first_moves=0), dict(growth=-1),
-    dict(time_limit=0), dict(progress_weight=0), dict(death_penalty=1), dict(speed_weight=-1),
+    dict(time_limit=0), dict(time_limit=math.inf), dict(progress_weight=0), dict(death_penalty=1),
+    dict(speed_weight=-1),
 ])
 def test_settings_out_of_range_are_refused(bad):
     with pytest.raises(ValueError):
