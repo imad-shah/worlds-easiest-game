@@ -7,6 +7,7 @@ calls the same function.
 import argparse
 import dataclasses
 import random
+import sys
 
 from worlds_easiest_game import engine, evolve, levels
 
@@ -51,8 +52,8 @@ def parse_args(argv=None):
     if args.command == 'train':
         if args.dev:
             parser.error('--dev is for playing the game, not for training')
-        if args.generations < 1:
-            train.error('--generations must be at least 1')
+        if not 1 <= args.generations <= sys.maxsize:
+            train.error(f'--generations must be at least 1 and at most {sys.maxsize}')
         chosen = {name: getattr(args, name) for name in TRAINING_OPTIONS if getattr(args, name) is not None}
         try:
             args.settings = evolve.Settings(population=args.population, **chosen)

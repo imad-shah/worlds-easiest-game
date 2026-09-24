@@ -93,6 +93,7 @@ def test_train_fails_when_no_character_beats_the_level(monkeypatch):
     ['train'],
     ['train', '1'],
     ['train', '10', '--generations', '0'],
+    ['train', '10', '--generations', '10000000000000000000'],
     ['train', '10', '--death-penalty', '1'],
     ['train', '10', '--time-limit', 'inf'],
     ['train', '10', '--time-limit', '1e17'],
