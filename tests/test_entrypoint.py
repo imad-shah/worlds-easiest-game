@@ -73,9 +73,9 @@ def watched(monkeypatch):
 
 def test_train_with_watch_trains_the_same_way_in_the_window(trained, watched, played):
     worlds_easiest_game.main(['train', '300', '--watch', '--seed', '7', '--generations', '50',
-                              '--mutation', '0.02'])
+                              '--persistence', '0.3'])
 
-    assert watched == [(levels.LEVELS, evolve.Settings(population=300, mutation=0.02), 7, 50)]
+    assert watched == [(levels.LEVELS, evolve.Settings(population=300, persistence=0.3), 7, 50)]
     assert trained == []
     assert played == []
 
@@ -98,16 +98,16 @@ def test_importing_the_game_prints_no_pygame_banner():
 
 def test_train_takes_every_setting_from_the_command_line(trained):
     worlds_easiest_game.main([
-        'train', '50', '--generations', '20', '--mutation', '0.02', '--hold', '6',
-        '--first-moves', '4', '--growth', '1', '--time-limit', '9.5', '--progress-weight', '3',
-        '--death-penalty', '0.2', '--speed-weight', '2',
+        'train', '50', '--generations', '20', '--hold', '6', '--first-moves', '4', '--growth', '1',
+        '--backtrack', '8', '--persistence', '0.3', '--parents', '0.5', '--spot', '10',
+        '--death-cost', '1.5', '--time-limit', '9.5',
     ])
 
     [(_, settings, _, cap)] = trained
     assert cap == 20
-    assert settings == evolve.Settings(population=50, mutation=0.02, hold=6, first_moves=4, growth=1,
-                                       time_limit=9.5, progress_weight=3, death_penalty=0.2,
-                                       speed_weight=2)
+    assert settings == evolve.Settings(population=50, hold=6, first_moves=4, growth=1, backtrack=8,
+                                       persistence=0.3, parents=0.5, spot=10, death_cost=1.5,
+                                       time_limit=9.5)
 
 
 def test_every_setting_but_the_population_has_a_command_line_option():
@@ -136,11 +136,12 @@ def test_train_fails_unless_every_level_is_beaten(monkeypatch):
     ['train', '1'],
     ['train', '10', '--generations', '0'],
     ['train', '10', '--generations', '10000000000000000000'],
-    ['train', '10', '--death-penalty', '1'],
+    ['train', '10', '--persistence', '1'],
+    ['train', '10', '--parents', '0'],
     ['train', '10', '--time-limit', 'inf'],
     ['train', '10', '--time-limit', '1e17'],
     ['train', '10', '--hold', '10000000000000000000'],
-    ['train', '10', '--speed-weight', 'inf'],
+    ['train', '10', '--death-cost', 'inf'],
     ['--dev', 'train', '10'],
     ['--dev', 'train', '10', '--watch'],
     ['train', '1', '--watch'],

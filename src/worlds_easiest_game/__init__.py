@@ -18,14 +18,15 @@ from worlds_easiest_game import engine, evolve, levels, watch  # noqa: E402
 
 # The learner's settings the `train` command offers, each with what it sets.
 TRAINING_OPTIONS = {
-    'mutation': (float, 'chance each move a child copies is changed to another'),
     'hold': (int, 'steps each move in a list is held for'),
     'first_moves': (int, 'moves in each list of the first generation'),
-    'growth': (int, 'moves added to the lists each generation, up to the time limit'),
+    'growth': (int, 'moves a child plays past where its parent\'s run ended'),
+    'backtrack': (int, 'most of its parent\'s last moves a child replaces with new ones'),
+    'persistence': (float, 'chance a new random move repeats the one before it'),
+    'parents': (float, 'share of each generation, the best-ranked, that children come from'),
+    'spot': (int, 'px; runs ending in the same square of this size rank behind the best of them'),
+    'death_cost': (float, 'tiles further from its target a run that died counts as'),
     'time_limit': (float, 'seconds a character has on each level (default: each level\'s own)'),
-    'progress_weight': (float, 'how sharply getting closer to beating the level raises the score'),
-    'death_penalty': (float, 'share of its score a character loses by dying'),
-    'speed_weight': (float, 'extra score for beating the level with the whole time limit left'),
 }
 DEFAULT_GENERATIONS = 1000
 

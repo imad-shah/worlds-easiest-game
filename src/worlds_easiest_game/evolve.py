@@ -4,21 +4,25 @@ A character is a list of moves (`headless.Move`), each held for `Settings.hold`
 steps. A generation is a population of characters that all play a level
 together through `headless.Runs`, each until it dies, beats the level, or its
 moves run out, and is then scored. The next generation keeps the best
-character unchanged and fills the rest with children of characters picked in
-proportion to their scores, each a copy of its parent's moves with a few
-changed at random. The first generation's lists are short, and every generation
-adds a few random moves to its children's lists, up to the level's time limit,
-so the early moves are worked out before the later ones matter:
+character unchanged and fills the rest with children of the best-ranked
+characters (see `ranking`). A child plays its parent's moves up to a point a
+little before where its parent's run ended, then new random moves, up to a few
+past that end (see `child`): so learning picks up where each run got to, and
+tries something else just before where it died. The first generation's lists
+are short, and they grow only as far as the runs get, up to the level's time
+limit, so the early moves are worked out before the later ones matter:
 
     for generation in evolve.generations(level, evolve.Settings(population=300), seed=1):
         generation.best_score, generation.best_distance, generation.deaths, generation.beaten
 
 A character is scored by where its run ended, measured as the distance it still
 had to walk along the level's corridors to the next of its `Targets`: a coin it
-has not collected, or the checkpoint it has not reached, and then the goal. The
-same seed always trains the same way. `rounds` gives each generation as it
-starts to play, as a `Round`, so its runs can be watched step by step (see
-`watch`) before they are scored.
+has not collected, or the checkpoint it has not reached, and then the goal. A
+run that died counts as having ended a few tiles further back, so waiting where
+it is safe beats rushing in to die a little closer. The same seed always trains
+the same way. `rounds` gives each generation as it starts to play, as a
+`Round`, so its runs can be watched step by step (see `watch`) before they are
+scored.
 
 `Training` learns a list of levels in order: once a generation beats a level,
 its best character's moves are kept as that level's `Solution`, and a new
@@ -43,8 +47,6 @@ from worlds_easiest_game import engine, headless, obstacles
 from worlds_easiest_game.headless import Ending, Move
 
 MOVES = list(Move)
-# What a move can change to when a child's copy of it changes.
-OTHER_MOVES = {move: [other for other in MOVES if other is not move] for move in MOVES}
 
 # The eight ways to step between neighbouring places, with how far each one walks.
 NEIGHBOURS = [(dx, dy, math.hypot(dx, dy)) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy]
@@ -189,15 +191,17 @@ class Targets:
 
     `closeness` scores where a run ended: as on a level with only a goal to
     reach, `1 / (1 + tiles)` for the `tiles` it still had to walk to its target,
-    but divided by `stage` for every coin it had still out, and for the
-    checkpoint until reached. `stage` is STEP_UP times `1 + tiles` for the
-    longest walk to any target on the level, so a run that has reached one more
-    target is always closer than one that has not, wherever each ended, and
+    plus `death_cost` more tiles if it died there, but divided by `stage` for
+    every coin it had still out, and for the checkpoint until reached. `stage`
+    is STEP_UP times `1 + tiles + death_cost` for the longest walk to any
+    target on the level, so a run that has reached one more target is always
+    closer than one that has not, wherever and however each ended, and
     collecting a coin or reaching the checkpoint at least multiplies a run's
     closeness by STEP_UP.
     '''
 
-    def __init__(self, level):
+    def __init__(self, level, death_cost=0.0):
+        self.death_cost = death_cost
         floor = Floor(level)
         goal = engine.region_rect(*level.GOAL)
         self.goal = floor.distances(goal, goal.colliderect)
@@ -208,7 +212,8 @@ class Targets:
             checkpoint = engine.region_rect(*checkpoint)
             self.checkpoint = floor.distances(checkpoint, checkpoint.colliderect)
         walks = [self.goal, *self.coins.values(), *filter(None, [self.checkpoint])]
-        self.stage = STEP_UP * (1 + max(distances.longest for distances in walks) / engine.TILE_SIZE)
+        longest = max(distances.longest for distances in walks)
+        self.stage = STEP_UP * (1 + longest / engine.TILE_SIZE + death_cost)
 
     def heading(self, position, coins_out, reached_checkpoint):
         '''What a run at `position`, with `coins_out` not collected yet, heads for
@@ -221,10 +226,12 @@ class Targets:
                                key=lambda choice: choice[1])
         return Heading(target, distance, len(left))
 
-    def closeness(self, heading):
-        '''How close a run heading as `heading` has come to beating the level:
-        1 on the goal, and above 0 anywhere it can still reach it from.'''
-        return 1 / (1 + heading.distance / engine.TILE_SIZE) / self.stage ** heading.left
+    def closeness(self, heading, died=False):
+        '''How close a run heading as `heading` has come to beating the level,
+        having `died` there or not: 1 on the goal, and above 0 anywhere it can
+        still reach it from.'''
+        tiles = heading.distance / engine.TILE_SIZE + (self.death_cost if died else 0)
+        return 1 / (1 + tiles) / self.stage ** heading.left
 
 
 @dataclass(frozen=True)
@@ -232,30 +239,31 @@ class Settings:
     '''What shapes the learning. Every setting but the population size has a default.'''
 
     population: int  # characters in each generation
-    mutation: float = 0.015  # the chance each move a child copies is changed to another
     hold: int = 12  # steps each move in a list is held for
     first_moves: int = 10  # moves in each list of the first generation
-    growth: int = 3  # moves added to the lists each generation, up to the time limit
+    growth: int = 3  # moves a child plays past where its parent's run ended, up to the time limit
+    backtrack: int = 5  # most of its parent's last moves a child replaces with new ones
+    persistence: float = 0.6  # the chance a new random move repeats the one before it
+    parents: float = 0.2  # the share of each generation, the best-ranked, that children come from
+    spot: int = 20  # px; the side of the squares a run's end is placed in, for `ranking`
+    death_cost: float = 3.0  # tiles further from its target a run that died counts as
     time_limit: float | None = None  # seconds a character has; the level's TIME_LIMIT unless given
-    # How the scoring rules count; see `score`.
-    progress_weight: float = 8.0
-    death_penalty: float = 0.1
-    speed_weight: float = 1.0
 
     def __post_init__(self):
         checks = [
             (self.population >= 2, 'the population must be at least 2'),
-            (0 <= self.mutation <= 1, 'the mutation rate must be between 0 and 1'),
             (self.first_moves >= 1, 'the first lists must have at least 1 move'),
-            (self.growth >= 0, 'the growth must not be negative'),
+            (self.growth >= 1, 'the growth must be at least 1 move'),
+            (self.backtrack >= 0, 'the backtrack must not be negative'),
+            (0 <= self.persistence < 1, 'the persistence must be at least 0 and below 1'),
+            (0 < self.parents <= 1, 'the parents\' share must be above 0 and at most 1'),
+            (self.spot >= 1, 'the spots must be at least 1 px wide'),
+            (0 <= self.death_cost < math.inf, 'the death cost must be at least 0 and finite'),
             # A run is counted out step by step, so a move's steps and the run's must fit in a Python index.
             (1 <= self.hold <= sys.maxsize,
              f'a move must be held for at least 1 step and at most {sys.maxsize} steps'),
             (self.time_limit is None or 0 < self.time_limit * engine.FPS <= sys.maxsize,
              f'the time limit must be positive and at most {sys.maxsize / engine.FPS:.3g} seconds'),
-            (0 < self.progress_weight < math.inf, 'the progress weight must be positive and finite'),
-            (0 <= self.death_penalty < 1, 'the death penalty must be at least 0 and below 1'),
-            (0 <= self.speed_weight < math.inf, 'the speed weight must be at least 0 and finite'),
         ]
         for ok, problem in checks:
             if not ok:
@@ -266,48 +274,89 @@ class Settings:
         limit = level.TIME_LIMIT if self.time_limit is None else self.time_limit
         return max(1, round(limit * engine.FPS))
 
-    def moves_allowed(self, level, generation):
-        '''How long the lists of generation `generation` (counting from 1) are on `level`.'''
-        cap = -(-self.time_limit_steps(level) // self.hold)  # enough moves to fill the time limit
-        return min(self.first_moves + self.growth * (generation - 1), cap)
+    def most_moves(self, level):
+        '''The most moves a list can have on `level`: enough to fill its time limit.'''
+        return -(-self.time_limit_steps(level) // self.hold)
 
 
-def score(result, closeness, limit, settings):
-    '''How well a run went, by the scoring rules; higher is better, and always above 0.
+def score(result, closeness, limit):
+    '''How well a run went; higher is better.
 
-    A run that beat the level scores 1, plus up to `speed_weight` more for the
-    share of the time limit (`limit` steps) it had left. Any other run scores its
-    `closeness` to beating the level (`Targets.closeness`), which is below 1
-    anywhere off the goal, raised to the power `progress_weight`; a death takes
-    `death_penalty` of that away. A steep `progress_weight` can shrink that to
-    nothing far from the goal, so it never goes below the smallest number above 0.
+    A run that beat the level scores 1, plus the share of the time limit
+    (`limit` steps) it had left, so the sooner the better. Any other run scores
+    its `closeness` to beating the level (`Targets.closeness`), which is below 1.
     '''
     if result.ending is Ending.BEATEN:
-        return 1 + settings.speed_weight * (1 - result.step / limit)
-    points = closeness ** settings.progress_weight
-    if result.ending is Ending.DIED:
-        points *= 1 - settings.death_penalty
-    return max(points, math.ulp(0.0))
+        return 1 + (1 - result.step / limit)
+    return closeness
 
 
-def child(parent, length, mutation, rng):
-    '''A copy of `parent` with each move changed to another at `mutation` odds,
-    then random moves added until it is `length` long.'''
-    moves = [rng.choice(OTHER_MOVES[move]) if rng.random() < mutation else move for move in parent]
-    return moves + rng.choices(MOVES, k=length - len(moves))
+def played(moves, result, hold):
+    '''How many of `moves`, each held for `hold` steps, a run that ended as
+    `result` played: every one it started, including the one it ended on.'''
+    return min(len(moves), -(-result.step // hold))
 
 
-def next_generation(characters, scores, length, mutation, rng):
-    '''The generation after `characters`, which scored `scores`, and as many.
+def random_moves(count, before, persistence, rng):
+    '''`count` random moves, following the move `before` (None if there is
+    none). Each repeats the move before it at `persistence` odds, and is
+    otherwise any of the nine, so straight runs and long waits come up often.'''
+    moves = []
+    for _ in range(count):
+        before = before if before is not None and rng.random() < persistence else rng.choice(MOVES)
+        moves.append(before)
+    return moves
+
+
+def child(parent, ended, settings, most, rng):
+    '''A child of `parent`, whose run ended during its move `ended` (counting
+    from 1), on a level whose lists hold at most `most` moves.
+
+    It keeps its parent's moves up to a point up to `settings.backtrack` moves
+    before that end, picked at random, and plays new `random_moves` from there,
+    up to `settings.growth` moves past it.
+    '''
+    kept = parent[:max(0, ended - rng.randint(0, settings.backtrack))]
+    length = min(ended + settings.growth, most)
+    return kept + random_moves(length - len(kept), kept[-1] if kept else None, settings.persistence, rng)
+
+
+def ranking(results, scores, spot):
+    '''Every character, by where it is in the generation's ranking, best first.
+
+    A character ranks by its score, but only the best of those whose runs ended
+    in the same `spot`-px square of the level, with the same coins collected and
+    the checkpoint reached or not, ranks among the others; the rest of them come
+    after every such best one. So the best-ranked are spread over every place
+    the runs have got to, not crowded onto one.
+    '''
+    best_first = sorted(range(len(scores)), key=scores.__getitem__, reverse=True)
+    spots, firsts, crowded = set(), [], []
+    for i in best_first:
+        result = results[i]
+        x, y = result.position
+        place = (x // spot, y // spot, result.coins, result.reached_checkpoint)
+        (crowded if place in spots else firsts).append(i)
+        spots.add(place)
+    return firsts + crowded
+
+
+def next_generation(generation, settings, most, rng):
+    '''The generation after `generation` (a `Generation`), and as many, with
+    lists of at most `most` moves.
 
     The best character comes first and unchanged, so it plays exactly as it did.
-    Every other place goes to a `child` of a parent picked at odds in proportion
-    to its score, with lists `length` moves long and `mutation` odds of each
-    copied move changing.
+    Every other place goes to a `child` of a parent picked at random from the
+    best-ranked `settings.parents` share of the generation (see `ranking`).
     '''
-    best = max(range(len(characters)), key=scores.__getitem__)
-    parents = rng.choices(characters, weights=scores, k=len(characters) - 1)
-    return [characters[best]] + [child(parent, length, mutation, rng) for parent in parents]
+    ranked = ranking(generation.results, generation.scores, settings.spot)
+    parents = ranked[:max(1, round(settings.parents * len(ranked)))]
+    characters, results = generation.characters, generation.results
+    children = [characters[generation.best]]
+    for i in (rng.choice(parents) for _ in range(len(characters) - 1)):
+        moves = characters[i]
+        children.append(child(moves, played(moves, results[i], settings.hold), settings, most, rng))
+    return children
 
 
 @dataclass(frozen=True)
@@ -393,7 +442,7 @@ class Round:
         results = self.runs.finish()
         headings = [self.targets.heading(result.position, result.coins_out, result.reached_checkpoint)
                     for result in results]
-        scores = [score(result, self.targets.closeness(heading), self.limit, self.settings)
+        scores = [score(result, self.targets.closeness(heading, result.ending is Ending.DIED), self.limit)
                   for result, heading in zip(results, headings)]
         return Generation(self.number, self.characters, results, headings, scores)
 
@@ -411,14 +460,14 @@ def level_rounds(level, settings, rng):
     The next generation is bred once the one before it has been scored, which
     plays out whatever of it is left.
     '''
-    targets = Targets(level)
-    length = settings.moves_allowed(level, 1)
-    characters = [rng.choices(MOVES, k=length) for _ in range(settings.population)]
+    targets = Targets(level, settings.death_cost)
+    most = settings.most_moves(level)
+    length = min(settings.first_moves, most)
+    characters = [random_moves(length, None, settings.persistence, rng) for _ in range(settings.population)]
     for number in count(1):
         playing = Round(level, number, characters, settings, targets)
         yield playing
-        characters = next_generation(characters, playing.generation.scores,
-                                     settings.moves_allowed(level, number + 1), settings.mutation, rng)
+        characters = next_generation(playing.generation, settings, most, rng)
 
 
 def rounds(level, settings, seed=None):
