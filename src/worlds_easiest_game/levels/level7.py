@@ -43,3 +43,7 @@ OBSTACLES = [
     *(vertical(x=x, from_y=144, to_y=422, speed=300) for x in TOP_COLUMNS),
     *(vertical(x=x, from_y=422, to_y=144, speed=300) for x in BOTTOM_COLUMNS),
 ]
+
+# How long a learning character gets on the level (see evolve). A perfect run
+# takes about 5.6 seconds; this leaves room for waiting on the dots.
+TIME_LIMIT = 20  # seconds

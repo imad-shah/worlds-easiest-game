@@ -42,3 +42,7 @@ OBSTACLES = [
     loop(RING, speed=150, start=(slot + 0.75) / SLOTS)
     for slot in range(SLOTS) if slot != GAP
 ]
+
+# How long a learning character gets on the level (see evolve). A perfect run
+# takes about 6.1 seconds; this leaves room for waiting on the dots.
+TIME_LIMIT = 20  # seconds
