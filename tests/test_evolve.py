@@ -9,6 +9,7 @@ here opens a window or needs a display.
 import math
 import random
 import sys
+from itertools import islice
 from types import SimpleNamespace
 
 import pygame
@@ -264,3 +265,59 @@ def test_train_gives_up_at_the_cap(capsys):
     lines = capsys.readouterr().out.splitlines()
     assert len(lines) == 3
     assert lines[-1] == 'Not beaten in 2 generations.'
+
+
+def test_a_round_scores_the_runs_it_was_stepped_through():
+    rounds = evolve.rounds(gate(), SETTINGS, seed=7)
+    watched = []
+    for playing in islice(rounds, 5):
+        for _ in range(30):  # partway, by hand, as the window does
+            playing.runs.step()
+        watched.append(playing.generation)
+
+    whole = first_generations(gate(), 7, 5)
+    assert [(g.characters, g.results, g.scores) for g in watched] == \
+        [(g.characters, g.results, g.scores) for g in whole]
+
+
+def test_a_replay_plays_out_as_the_run_it_replays():
+    playing = next(evolve.rounds(gate(), SETTINGS, seed=7))
+    results = playing.generation.results
+
+    assert [playing.replay(i).finish() for i in range(len(results))] == [[result] for result in results]
+
+
+def nearest_alive(playing):
+    alive = [i for i, ending in enumerate(playing.runs.endings) if ending is not Ending.DIED]
+    return min(alive, key=lambda i: playing.distances[playing.runs.attempts[i].player.topleft])
+
+
+def test_the_first_generation_is_led_by_the_character_nearest_the_goal():
+    playing = next(evolve.rounds(gate(), SETTINGS, seed=7))
+    assert playing.champion is None
+    leaders = set()
+    while not playing.runs.over:
+        playing.runs.step()
+        assert playing.leader() == nearest_alive(playing)
+        leaders.add(playing.leader())
+
+    assert len(leaders) > 1
+
+
+def test_later_generations_are_led_by_the_last_ones_best_until_it_dies():
+    rounds = evolve.rounds(gate(), SETTINGS, seed=3)
+    before = next(rounds).generation
+    for playing in islice(rounds, 60):
+        assert playing.champion == 0
+        assert playing.characters[0] == before.characters[before.best]
+        if before.results[before.best].ending is Ending.DIED:
+            break  # the champion dies again, just as it did
+        before = playing.generation
+    else:
+        pytest.fail('no champion died')
+
+    while playing.runs.endings[0] is None:
+        assert playing.leader() == 0
+        playing.runs.step()
+    assert playing.runs.endings[0] is Ending.DIED
+    assert playing.leader() == nearest_alive(playing) != 0

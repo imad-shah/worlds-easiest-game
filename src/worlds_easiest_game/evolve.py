@@ -15,7 +15,9 @@ so the early moves are worked out before the later ones matter:
 
 A character is scored by where its run ended, measured as the distance it still
 had to walk to the goal along the level's corridors (`distance_map`). The same
-seed always trains the same way.
+seed always trains the same way. `rounds` gives each generation as it starts to
+play, as a `Round`, so its runs can be watched step by step (see `watch`) before
+they are scored.
 '''
 
 import heapq
@@ -208,23 +210,81 @@ def steps(moves, hold, limit):
     return islice(chain.from_iterable(repeat(move, hold) for move in moves), limit)
 
 
-def generations(level, settings, seed=None):
-    '''Every generation that learns to play `level`, in turn, from the first.
+class Round:
+    '''A generation at play: its characters' runs on `level`, stepping together,
+    and then how they scored.
 
-    The same `seed` always gives the same generations.
+    `runs` (a `headless.Runs`) can be stepped one step at a time to watch the
+    runs play; `generation` plays out whatever is left of them and scores them,
+    so the runs watched are the very runs that are scored.
+    '''
+
+    def __init__(self, level, number, characters, settings, distances):
+        self.level = level
+        self.number = number  # counting from 1
+        self.characters = characters
+        self.settings = settings
+        self.distances = distances
+        self.limit = settings.time_limit_steps(level)
+        self.runs = headless.Runs(level, [self.moves_per_step(moves) for moves in characters])
+
+    def moves_per_step(self, moves):
+        '''The move for each step of the run a character with `moves` plays.'''
+        return steps(moves, self.settings.hold, self.limit)
+
+    def replay(self, index):
+        '''A fresh run of the character at `index` alone, which plays out just as its run here does.'''
+        return headless.Runs(self.level, [self.moves_per_step(self.characters[index])])
+
+    @property
+    def champion(self):
+        '''Where the best character of the generation before is in this one, which
+        `next_generation` carries over unchanged as the first; None in the first generation.'''
+        return 0 if self.number > 1 else None
+
+    def leader(self):
+        '''The character to follow as the runs play: the `champion` until a dot
+        touches it, and otherwise the character alive now that is closest to the
+        goal. None once every character has died.'''
+        alive = [i for i, ending in enumerate(self.runs.endings) if ending is not Ending.DIED]
+        if self.champion in alive:
+            return self.champion
+        return min(alive, key=lambda i: self.distances[self.runs.attempts[i].player.topleft], default=None)
+
+    @cached_property
+    def generation(self):
+        '''This generation, played and scored.'''
+        results = self.runs.finish()
+        ended = [self.distances[result.position] for result in results]
+        scores = [score(result, distance, self.limit, self.settings) for result, distance in zip(results, ended)]
+        return Generation(self.number, self.characters, results, ended, scores)
+
+
+def rounds(level, settings, seed=None):
+    '''Every generation that learns to play `level`, in turn, from the first, as it
+    starts to play (a `Round`).
+
+    The next generation is bred once the one before it has been scored, which
+    plays out whatever of it is left. The same `seed` always gives the same
+    generations.
     '''
     rng = random.Random(seed)
     distances = distance_map(level)
-    limit = settings.time_limit_steps(level)
     length = settings.moves_allowed(level, 1)
     characters = [rng.choices(MOVES, k=length) for _ in range(settings.population)]
     for number in count(1):
-        results = headless.play_all(level, [steps(moves, settings.hold, limit) for moves in characters])
-        ended = [distances[result.position] for result in results]
-        scores = [score(result, distance, limit, settings) for result, distance in zip(results, ended)]
-        yield Generation(number, characters, results, ended, scores)
-        characters = next_generation(characters, scores, settings.moves_allowed(level, number + 1),
-                                     settings.mutation, rng)
+        playing = Round(level, number, characters, settings, distances)
+        yield playing
+        characters = next_generation(characters, playing.generation.scores,
+                                     settings.moves_allowed(level, number + 1), settings.mutation, rng)
+
+
+def generations(level, settings, seed=None):
+    '''Every generation that learns to play `level`, in turn, from the first, played and scored.
+
+    The same `seed` always gives the same generations.
+    '''
+    return (playing.generation for playing in rounds(level, settings, seed))
 
 
 def summary(generation):
@@ -236,19 +296,30 @@ def summary(generation):
             f'{"beaten" if generation.beaten else "not beaten"}')
 
 
+def report(generation):
+    '''Print a `summary` of `generation`, then, if it beat the level, how.'''
+    print(summary(generation), flush=True)
+    if generation.beaten:
+        winner = generation.results[generation.best]
+        print(f'Beaten in generation {generation.number}, by a list of '
+              f'{len(generation.characters[generation.best])} moves that reached the goal '
+              f'{winner.step / engine.FPS:.2f} s in.', flush=True)
+
+
+def give_up(cap):
+    '''Print that `cap` generations played without beating the level.'''
+    print(f'Not beaten in {cap} generations.', flush=True)
+
+
 def train(level, settings, seed, cap):
-    '''Train on `level`, printing a `summary` of each generation, until a
-    character beats it or `cap` generations have played.
+    '''Train on `level`, `report`ing each generation, until a character beats it
+    or `cap` generations have played.
 
     Returns the generation that beat the level, or None.
     '''
     for generation in islice(generations(level, settings, seed), cap):
-        print(summary(generation), flush=True)
+        report(generation)
         if generation.beaten:
-            winner = generation.results[generation.best]
-            print(f'Beaten in generation {generation.number}, by a list of '
-                  f'{len(generation.characters[generation.best])} moves that reached the goal '
-                  f'{winner.step / engine.FPS:.2f} s in.')
             return generation
-    print(f'Not beaten in {cap} generations.')
+    give_up(cap)
     return None

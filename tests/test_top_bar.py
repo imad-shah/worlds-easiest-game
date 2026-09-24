@@ -130,3 +130,9 @@ def test_menu_and_win_screens_fill_the_window(display):
         assert screen.surface.get_size() == (engine.SCREEN_WIDTH, engine.WINDOW_HEIGHT)
         for button in screen.buttons.values():
             assert screen.surface.get_rect().contains(button)
+
+
+def test_the_window_is_titled_with_the_games_name(display):
+    engine.open_window()
+
+    assert pygame.display.get_caption()[0] == "World's Easiest Game"

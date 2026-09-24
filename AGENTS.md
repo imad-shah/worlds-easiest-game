@@ -19,8 +19,9 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   the maintainer; otherwise automated tests cover static facts and pure helpers.
 - Game logic advances only in fixed steps of `engine.STEP`, and the rules of a level
   live in `engine.Attempt`, which needs no display. The window (`Play`) and the headless
-  move-list runners (`headless.play`, and `headless.play_all`, which the learner in
-  `evolve` trains through) all step it, so change the rules there, not in any caller.
+  move-list runners (`headless.play`, and `headless.Runs`, which the learner in
+  `evolve` trains through and `watch` draws) all step it, so change the rules there,
+  not in any caller.
 - The game lives in the `worlds_easiest_game` package under `src/`, and its modules
   import each other by that absolute name. Both entry points, the console script
   declared in `pyproject.toml` and the `game/main.py` launcher, call the same

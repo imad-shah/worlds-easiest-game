@@ -135,3 +135,29 @@ def test_shared_dots_never_move_back():
 
     with pytest.raises(ValueError):
         dots.at(4)
+
+
+def test_runs_step_together_and_say_how_each_ended_as_it_ends():
+    dot = horizontal(y=115, from_x=20.5, to_x=180.5, speed=engine.FPS)
+    level = box(OBSTACLES=[dot])
+    runs = headless.Runs(level, [[Move.STAY] * 200, [Move.STAY] * 10, [], [Move.UP] * 300])
+
+    assert runs.endings == [None, None, Ending.OUT_OF_MOVES, None]
+    assert (runs.steps, len(runs.alive)) == (0, 4)
+    for _ in range(10):
+        runs.step()
+    # The second run ends on its last move, not on the step after it.
+    assert runs.endings == [None, Ending.OUT_OF_MOVES, Ending.OUT_OF_MOVES, None]
+    for _ in range(59):
+        runs.step()
+    assert runs.steps == 69
+    assert runs.endings[0] is Ending.DIED  # the dot reaches the spawn on step 69
+    assert runs.alive == [runs.attempts[1], runs.attempts[2], runs.attempts[3]]
+    assert not runs.over
+
+    results = runs.finish()
+
+    assert runs.over and runs.steps == 300
+    assert results == headless.play_all(level, [[Move.STAY] * 200, [Move.STAY] * 10, [], [Move.UP] * 300])
+    runs.step()
+    assert runs.steps == 300, 'runs that are over took another step'

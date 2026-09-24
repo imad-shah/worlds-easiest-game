@@ -52,7 +52,8 @@ same moves on the same level always end the same way.
 
 `headless.play_all(level, move_lists)` plays many lists at once, stepping the
 runs together so they share one set of dots, and reports each run as `play`
-would.
+would. `headless.Runs(level, move_lists)` plays them the same way one step at a
+time, so they can be drawn as they go.
 
 ### Teaching an AI to beat level 1
 
@@ -88,3 +89,36 @@ rule counts (`--progress-weight`, `--death-penalty`, `--speed-weight`).
 With 300 characters a generation takes about a quarter of a second, and the
 defaults usually beat level 1 within 30 generations, in under 10 seconds.
 `uv run python game/main.py train 300` does the same.
+
+### Watching it learn
+
+```
+uv run worlds-easiest-game train 300 --watch
+```
+
+trains the same way, taking the same options, but in the game window, on
+level 1 as the game draws it. Every character of the generation plays at once,
+at the game's normal speed, each drawn as the red player square; a character
+that dies disappears. A generation ends once every character has died or used
+up its moves, and the next one starts straight away, so the first generations,
+with their short lists, flash by in about a second each and later ones run
+longer. These are the very runs the learner scores and breeds from.
+
+Instead of the top bar, white text at the top left shows the generation, how
+many of its characters are still alive, and how many steps its run has taken,
+with a hint line for the keys:
+
+- F switches to fast mode, which trains as fast as the machine allows and only
+  draws where training has got to every thirtieth of a second, and back.
+- B switches between drawing every character and drawing only the best one.
+  The readout still counts the whole generation. The best one is the best
+  character of the generation before, which the learner carries over unchanged,
+  until a dot touches it; before there is one (in the first generation) or once
+  it has died, it is whichever character still alive is closest to the goal
+  along the corridors.
+- Q, or closing the window, quits.
+
+Once a character beats level 1, the window replays its winning run alone from
+the start, at normal speed, and then shows where it ended until you quit. The
+command still prints a line per generation, and exits with status 1 if no
+character had beaten the level by the time the window closed.

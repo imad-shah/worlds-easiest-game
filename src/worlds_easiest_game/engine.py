@@ -7,6 +7,7 @@ from worlds_easiest_game import obstacles
 
 
 # constants
+TITLE = "World's Easiest Game"  # the window's title, and the menu's
 # The play area every level is laid out on; level coordinates are relative to it.
 SCREEN_WIDTH = 981
 SCREEN_HEIGHT = 574
@@ -194,6 +195,12 @@ def draw_centered(surface, sprite, center):
     '''Blit `sprite` centered on `center`, rounded to the nearest pixel.'''
     x, y = center
     surface.blit(sprite, sprite.get_rect(center=(round(x), round(y))))
+
+
+def draw_player(surface, player):
+    '''Draw the red player square at `player`, a Rect.'''
+    pygame.draw.rect(surface, RED, player)
+    pygame.draw.rect(surface, BLACK, player, 5)
 
 
 def read_input(keys):
@@ -429,8 +436,7 @@ class Play:
         screen.blit(self.level_surface, (0, 0))
         for coin in attempt.coins:
             draw_centered(screen, self.coin_sprite, coin)
-        pygame.draw.rect(screen, RED, attempt.player)
-        pygame.draw.rect(screen, BLACK, attempt.player, 5)
+        draw_player(screen, attempt.player)
         for dot in attempt.dots.moving:
             draw_centered(screen, self.obstacle_sprite, dot.center)
         if self.god_mode:
@@ -457,7 +463,7 @@ class Game:
         self.levels = levels
         self.dev = dev
         self.god_mode = False
-        self.menu = Screen("World's Easiest Game", ['START'])  # what the game opens on
+        self.menu = Screen(TITLE, ['START'])  # what the game opens on
         self.won = Screen('You Won!', ['RESTART', 'QUIT'])  # after the last level
         self.bar = TopBar()
         self.play = None
@@ -502,6 +508,11 @@ class Game:
             else:
                 self.state = self.won
 
+    def advance(self, keys, steps):
+        '''Run `steps` STEPs of the current state with `keys` held, as a frame of `drive` does.'''
+        for _ in range(steps):
+            self.update(keys)
+
     def draw(self, screen):
         '''Draw the current state onto `screen`, the whole window.'''
         if self.state is not self.play:
@@ -513,14 +524,21 @@ class Game:
         self.play.draw(screen.subsurface(PLAY_AREA))
 
 
-def run(levels, dev=False):
-    '''Open the game on its menu; starting from there plays `levels` in order.
-
-    `dev` turns on the developer-only keys: T toggles god mode.
-    '''
+def open_window():
+    '''Start pygame and open the game window, titled with the game's name.'''
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, WINDOW_HEIGHT))
-    game = Game(levels, dev)
+    pygame.display.set_caption(TITLE)
+    return screen
+
+
+def drive(game, screen):
+    '''Run `game` in the window `screen` until it stops `running`, at real-time pace.
+
+    Each frame hands `game.handle` every event, then `game.advance` the keys held
+    and how many STEPs of real time the frame covers, then has `game.draw` the
+    window. Pressing Q or closing the window stops it.
+    '''
     coords = []
     unstepped = 0.0  # real time drawn frames have taken that no step has covered yet
     last_frame = time.perf_counter()
@@ -551,10 +569,20 @@ def run(levels, dev=False):
 
         # Run a step for every STEP of real time the frame took, carrying the
         # remainder over, so the game keeps real-time pace whatever the frame rate.
+        steps = 0
         while unstepped >= STEP:
-            game.update(keys)
+            steps += 1
             unstepped -= STEP
+        game.advance(keys, steps)
         game.draw(screen)
         pygame.display.flip()
 
+
+def run(levels, dev=False):
+    '''Open the game on its menu; starting from there plays `levels` in order.
+
+    `dev` turns on the developer-only keys: T toggles god mode.
+    '''
+    screen = open_window()
+    drive(Game(levels, dev), screen)
     pygame.quit()
