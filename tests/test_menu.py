@@ -160,6 +160,22 @@ def test_the_menu_draws_the_population_centered_between_minus_and_plus(display):
         assert abs(number.centerx - menu.number.centerx) <= 1 and abs(number.centery - menu.number.centery) <= 1
 
 
+def test_the_population_label_s_capitals_share_the_number_s_center_line(display):
+    menu = app.Menu()
+    window = frame(menu)
+    band = pygame.Rect(0, menu.minus.top, menu.minus.left, menu.minus.height)
+    label = ink(window, band)
+    # The label's first glyph is its capital C, up to the first column with no ink.
+    right = label.left
+    while ink(window, pygame.Rect(right, band.top, 1, band.height)):
+        right += 1
+    capital = ink(window, pygame.Rect(label.left, band.top, right - label.left, band.height))
+    number = ink(window, menu.number)
+
+    assert label.right < menu.minus.left
+    assert abs(capital.centery - number.centery) <= 1 and abs(capital.centery - menu.minus.centery) <= 1
+
+
 def test_start_game_plays_the_first_level_by_hand(display):
     game = app.Game(levels.LEVELS)
     game.handle(click(game.menu.buttons[app.START]))

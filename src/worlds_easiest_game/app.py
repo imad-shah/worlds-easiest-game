@@ -66,11 +66,14 @@ class Menu:
             self.buttons[label] = button
 
         # The control's label, minus, the number and plus, in a row centered under the buttons.
-        label = pygame.font.Font(None, self.LABEL_FONT_SIZE).render(POPULATION_LABEL, True, engine.BLACK)
+        label_font = pygame.font.Font(None, self.LABEL_FONT_SIZE)
+        label = label_font.render(POPULATION_LABEL, True, engine.BLACK)
         row = label.get_width() + self.LABEL_GAP + 2 * self.STEPPER_SIZE + self.NUMBER_WIDTH
         rowy = middle + 150
         left = centerx - row // 2
-        self.surface.blit(label, label.get_rect(midleft=(left, rowy)))
+        # Set on the baseline that centers its capitals on the row, as the number's digits are.
+        cap_height = label_font.metrics('H')[0][3]
+        self.surface.blit(label, (left, rowy + (cap_height + 1) // 2 - label_font.get_ascent()))
         left += label.get_width() + self.LABEL_GAP
         self.minus = pygame.Rect(left, 0, self.STEPPER_SIZE, self.STEPPER_SIZE)
         self.number = pygame.Rect(self.minus.right, 0, self.NUMBER_WIDTH, self.STEPPER_SIZE)
