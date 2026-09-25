@@ -53,7 +53,8 @@ how far it still had to walk to its next target, going around walls, not through
 - The targets are the coins not collected yet, then the goal (and the checkpoint on level 9)
 - Collecting one more coin always beats being closer with fewer
 - Beating the level scores highest, and sooner is better
-- Dying counts as ending 3 tiles further back, so waiting safely for a gap beats rushing in
+- Dying counts as ending 3 tiles further from the target, so waiting safely beats dying just ahead,
+  but dying well ahead still counts as getting further
 
 #### How the next generation is made
 
