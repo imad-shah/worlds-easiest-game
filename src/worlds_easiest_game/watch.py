@@ -22,7 +22,7 @@ from worlds_easiest_game import engine, evolve
 
 FAST_KEY = pygame.K_f
 BEST_KEY = pygame.K_b
-MENU_KEY = pygame.K_ESCAPE  # back to the game's menu, when the watch was started from it
+MENU_KEY = pygame.K_ESCAPE  # back to the game's menu, from a watch started there (and from hand play)
 MENU_HINT = 'Esc: back to menu'  # at the top right, when the watch was started from the menu
 # In fast mode each frame trains for this long, then draws where training has got to.
 FAST_FRAME = 1 / 30  # seconds

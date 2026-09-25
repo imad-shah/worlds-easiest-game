@@ -25,6 +25,8 @@ have reached it, touching a dot sends you back there instead of to the start.
 The dots and coins still go back to where they were.
 After the last level you win: click Restart to play again from level 1, or Quit
 to close the game.
+Press Esc in any level, or on the win screen, to go back to the menu. That game
+is dropped: Start game from there plays level 1 again, with no deaths.
 Press Q or close the window to quit.
 
 Dependencies (pygame, and the game itself) come from uv, which installs them
@@ -152,10 +154,13 @@ character beats the level, the window moves on to the next level, and a new
 population starts there. These are the very runs the learner scores and breeds
 from.
 
-Before you click Watch the AI beat the game, the menu's minus and plus buttons,
-under it, set how many characters each generation has: 300 to start with, the
-population the default settings are tuned for, stepping through set sizes from
-2 to 1000. Every other setting is its default, the seed is random (and printed,
+Before you click Watch the AI beat the game, the box under it sets how many
+characters each generation has: 300 to start with, the population the default
+settings are tuned for. Click the box and type any whole number (digits only,
+Backspace deletes); pressing Enter there starts watching too. A number outside
+the range shown beside the box, 2 to 1000, is taken as the nearest end of it
+when watching starts, and an empty box as 300. The box keeps the number watched
+when you come back to the menu. Every other setting is its default, the seed is random (and printed,
 with the training lines, as `train` prints them), and a level gets 1000
 generations. For any other settings or a seed of your own, use `train --watch`.
 
