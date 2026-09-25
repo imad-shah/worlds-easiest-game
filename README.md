@@ -1,4 +1,4 @@
-Recreating the popular flash game "World's hardest game", but making it easy by having AI beat it
+Recreating the popular flash game "World's Hardest Game", but making it easy by having AI beat it
 
 ### Running it
 
@@ -10,7 +10,7 @@ uv run worlds-easiest-game
 
 ![demo](assets/images/weg-1.gif)
 
-### Fast mode (Toggelable by F)
+### Fast mode (Toggleable by F while watching the AI)
 
 ![demo](assets/images/weg-fast-mode.gif)
 
@@ -22,22 +22,18 @@ The game opens on a menu with two options
 Press `Esc` in any level to go back to the menu  
 Press `Q` or close the window to quit
 
-## Dependencies 
-(pygame, and the game itself) come from `uv`, which installs them into the project environment on first run
+### Dependencies
+
+pygame and the game itself come from `uv`, which installs them into the project environment on first run
 
 ### Developer mode
 
-Run `uv run worlds-easiest-game --dev` to enable god mode. Press `T` during a level to
-toggle it
+Run `uv run worlds-easiest-game --dev` to enable god mode. Press `T` during a level to toggle it.
 
 ### Teaching an AI to beat the game
 
-```
-uv run worlds-easiest-game train 300
-```
-
-Trains an AI on every level in turn, 300 characters at a time, with no window and as fast as the machine allows
-(`uv run python game/main.py train 300` does the same)
+Pick `Watch the AI beat the game` on the menu to watch an AI learn every level in turn.
+The box under it sets how many characters play at once (300 to start with)
 
 #### How a character plays
 
@@ -82,19 +78,9 @@ level 2: new characters start here ...                        -> keep its moves
 level 9: ...                                                  -> keep its moves
 ```
 
-Each generation prints one line: the best score, how far the best character got, how many died,
-and whether one beat the level.
 If a level is not beaten within 1000 generations, training stops there
 
 #### Replaying the win
 
 Once the last level is beaten, the kept moves of all levels together are one run of the whole game.
-The command replays it from level 1 to the end and prints how long the whole game took
-
-With 300 characters on an Apple M3, training beats every level in about 5 minutes,
-and the replay plays the whole game in about a minute and a half
-
-#### Settings
-
-`train --help` lists every setting, such as `--generations`, `--seed` (the same seed always trains the same way),
-`--hold`, `--parents` and `--time-limit`
+The window replays it from level 1 to the end, which takes about a minute and a half
