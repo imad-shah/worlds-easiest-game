@@ -24,11 +24,12 @@ POPULATION_DIGITS = len(str(MAX_POPULATION))
 def type_into(text, event):
     '''The population field's `text` once key press `event` has been typed into
     it: a digit is added to the end while it holds fewer than POPULATION_DIGITS,
-    Backspace deletes the last one, and any other key leaves it as it was.'''
+    or replaces a lone 0 so no leading zeros pile up, Backspace deletes the last
+    one, and any other key leaves it as it was.'''
     if event.key == pygame.K_BACKSPACE:
         return text[:-1]
     if event.unicode.isascii() and event.unicode.isdigit() and len(text) < POPULATION_DIGITS:
-        return text + event.unicode
+        return event.unicode if text == '0' else text + event.unicode
     return text
 
 
