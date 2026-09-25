@@ -160,9 +160,10 @@ settings are tuned for. Click the box and type any whole number (digits only,
 Backspace deletes); pressing Enter there starts watching too. A number outside
 the range shown beside the box, 2 to 1000, is taken as the nearest end of it
 when watching starts, and an empty box as 300. The box keeps the number watched
-when you come back to the menu. Every other setting is its default, the seed is random (and printed,
-with the training lines, as `train` prints them), and a level gets 1000
-generations. For any other settings or a seed of your own, use `train --watch`.
+when you come back to the menu. Every other setting is its default, the seed is
+random (and printed, with the training lines, as `train` prints them), and a
+level gets 1000 generations. For any other settings or a seed of your own, use
+`train --watch`.
 
 Instead of the top bar, a line of white text at the top left shows the level
 being learned, the generation, how many of its characters are still alive, and
