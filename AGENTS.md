@@ -30,8 +30,9 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - The game lives in the `worlds_easiest_game` package under `src/`, and its modules
   import each other by that absolute name. Both entry points, the console script
   declared in `pyproject.toml` and the `game/main.py` launcher, call the same
-  `worlds_easiest_game.main`; README.md documents how to run them. Entry points and
-  suite alike reach the game as an installed package.
+  `worlds_easiest_game.main`; README.md documents only the console script
+  (`uv run worlds-easiest-game`) and intentionally leaves `game/main.py` out.
+  Entry points and suite alike reach the game as an installed package.
 
 ## Maintaining this file
 
