@@ -120,6 +120,8 @@ def digit(character):
 @pytest.mark.parametrize('text, event, result', [
     ('24', digit('6'), '246'),
     ('', digit('0'), '0'),
+    ('0', digit('0'), '0'),
+    ('0', digit('5'), '5'),
     ('100', digit('0'), '1000'),
     ('1000', digit('5'), '1000'),
     ('9999', digit('1'), '9999'),
@@ -175,6 +177,15 @@ def test_the_field_takes_typing_only_once_clicked_and_until_a_click_elsewhere(di
     assert menu.text == '246'
     menu.handle(pygame.event.Event(pygame.MOUSEBUTTONDOWN, pos=menu.field.center, button=3))
     assert not menu.focused, 'a right click focused the field'
+
+
+def test_leading_zeros_typed_into_the_field_do_not_cut_the_number_short(display):
+    menu = app.Menu()
+    menu.handle(click(menu.field))
+    for _ in range(3):
+        menu.handle(typed(pygame.K_BACKSPACE, '\b'))
+    type_text(menu, '00050')
+    assert menu.text == '50' and menu.population == 50
 
 
 def test_enter_in_the_field_chooses_watching(display):
