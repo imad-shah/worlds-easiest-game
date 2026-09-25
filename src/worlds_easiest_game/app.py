@@ -127,9 +127,9 @@ class Game:
 
     `deaths` counts every death since Start game or Restart, across levels.
 
-    Watch the AI beat the game starts a new `watch.Watch` training on `levels` from level 1, with
-    the menu's population and the learner's other defaults, and a random seed
-    it prints; once Esc stops it, the game is back on the menu.
+    Watch the AI beat the game starts a new `watch.Watch` training on `levels`
+    from level 1, with the menu's population and the learner's other defaults,
+    and a random seed it prints; once Esc stops it, the game is back on the menu.
 
     With `dev` on, pressing T in a level toggles god mode, which stays as set
     across levels and restarts.

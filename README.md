@@ -154,10 +154,10 @@ from.
 
 Before you click Watch the AI beat the game, the menu's minus and plus buttons,
 under it, set how many characters each generation has: 300 to start with, the
-population the default settings are tuned for, and anywhere from 2 to 1000.
-Every other setting is its default, the seed is random (and printed, with the
-training lines, as `train` prints them), and a level gets 1000 generations. For
-any other settings or a seed of your own, use `train --watch`.
+population the default settings are tuned for, stepping through set sizes from
+2 to 1000. Every other setting is its default, the seed is random (and printed,
+with the training lines, as `train` prints them), and a level gets 1000
+generations. For any other settings or a seed of your own, use `train --watch`.
 
 Instead of the top bar, a line of white text at the top left shows the level
 being learned, the generation, how many of its characters are still alive, and
@@ -180,6 +180,7 @@ Once the last level is beaten, the window replays the whole game from the kept
 solutions, each level's winning run in turn from level 1 to the last, at
 normal speed, and then shows where the last one ended until you quit (or,
 from the menu, go back to it). If a level is not beaten within `--generations`
-generations, training stops there, on that level. The command still prints the same training lines as without
-`--watch`, though the replay is only shown in the window, not printed, and it
-exits with status 1 unless every level was beaten by the time the window closed.
+generations, training stops there, on that level. The command still prints the
+same training lines as without `--watch`, though the replay is only shown in the
+window, not printed, and it exits with status 1 unless every level was beaten by
+the time the window closed.
