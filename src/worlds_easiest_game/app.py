@@ -140,7 +140,7 @@ class Game:
         self.dev = dev
         self.god_mode = False
         self.menu = Menu()  # what the game opens on
-        self.won = engine.Screen('You Won!', ['RESTART', 'QUIT'])  # after the last level
+        self.won = engine.Screen('You Won!', ['Restart', 'Quit'])  # after the last level
         self.bar = engine.TopBar()
         self.play = None
         self.watching = None  # the learner training, while it is on screen
@@ -182,9 +182,9 @@ class Game:
                 self.start_watch()
         elif self.state is self.won:
             choice = self.won.clicked(event)
-            if choice == 'RESTART':
+            if choice == 'Restart':
                 self.start_level(0)
-            elif choice == 'QUIT':
+            elif choice == 'Quit':
                 self.running = False
         elif self.state is self.watching:
             self.watching.handle(event)
