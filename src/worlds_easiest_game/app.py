@@ -4,7 +4,8 @@ hand, the win screen, and the learner training on the levels to watch.
 The menu offers exactly two options: Start game (START) plays the levels by
 hand, and Watch the AI beat the game (WATCH) trains the learner on them from
 level 1 in the window, as `watch.Watch` shows it, with as many characters a
-generation as the menu's population control says.
+generation as the menu's population field says. Esc goes back to the menu from
+either, at any point.
 '''
 
 import pygame
@@ -13,42 +14,60 @@ from worlds_easiest_game import engine, evolve, watch
 
 START = 'Start game'
 WATCH = 'Watch the AI beat the game'
-# The generation sizes the menu's minus and plus buttons step through, smallest to largest.
-POPULATIONS = (evolve.MIN_POPULATION, 5, 10, 25, 50, 100, 150, 200, 250, 300, 400, 500, 750, 1000)
+MAX_POPULATION = 1000  # the most characters a generation watched from the menu can have
 POPULATION_LABEL = 'Characters per generation:'
+POPULATION_RANGE = f'({evolve.MIN_POPULATION}-{MAX_POPULATION})'
+# The most digits the population field holds, enough for any number up to MAX_POPULATION.
+POPULATION_DIGITS = len(str(MAX_POPULATION))
 
 
-def step_population(population, direction):
-    '''The population one click of minus (`direction` -1) or plus (1) makes of
-    `population`: the next of POPULATIONS that way, or `population` itself
-    once there is none.'''
-    if direction > 0:
-        return min((choice for choice in POPULATIONS if choice > population), default=population)
-    return max((choice for choice in POPULATIONS if choice < population), default=population)
+def type_into(text, event):
+    '''The population field's `text` once key press `event` has been typed into
+    it: a digit is added to the end while it holds fewer than POPULATION_DIGITS,
+    Backspace deletes the last one, and any other key leaves it as it was.'''
+    if event.key == pygame.K_BACKSPACE:
+        return text[:-1]
+    if event.unicode.isascii() and event.unicode.isdigit() and len(text) < POPULATION_DIGITS:
+        return text + event.unicode
+    return text
+
+
+def population_from(text):
+    '''The population the field's `text` asks for: its number held between
+    evolve.MIN_POPULATION and MAX_POPULATION, or evolve.DEFAULT_POPULATION
+    when it is empty.'''
+    if not text:
+        return evolve.DEFAULT_POPULATION
+    return max(evolve.MIN_POPULATION, min(MAX_POPULATION, int(text)))
 
 
 class Menu:
     '''The card the game opens on: the title, the two options' buttons one above
-    the other, and under them the population control for watching, a minus and a
-    plus button either side of the number of characters each generation has.
+    the other, and under them the population field for watching, where the
+    number of characters each generation has is typed, with its allowed range
+    beside it.
 
     It keeps the win screen's look (`engine.Screen`): the same title, fonts and
     buttons, stacked in a column wide enough for the longer label. `handle`
-    names the option a left click chooses; a click on minus or plus changes
-    `population` instead, which starts at `evolve.DEFAULT_POPULATION`.
+    names the option a left click chooses. A left click on the field focuses it
+    and one anywhere else leaves it; while it is `focused`, the keys type into
+    its `text` as `type_into` does, and Enter chooses Watch the AI beat the game.
+    `text` starts as evolve.DEFAULT_POPULATION, and `population` is what it asks
+    for, as `population_from` reads it.
     '''
 
     BUTTON_HEIGHT = engine.Screen.BUTTON_SIZE[1]
     BUTTON_PADDING = 40  # px between the longer label and its button's sides
     BUTTON_GAP = 24  # px between the two buttons
-    STEPPER_SIZE = 50  # the side of the minus and plus buttons
-    SIGN_SIZE = 20  # the length of the bars the minus and plus signs are drawn with
-    NUMBER_WIDTH = 110  # px between the minus and plus buttons, where the number goes
+    FIELD_SIZE = (130, 50)
+    CARET_WIDTH = 3
+    CARET_GAP = 5  # px between the number's ink and the caret
     LABEL_FONT_SIZE = 36
-    LABEL_GAP = 20  # px between the control's label and its minus button
+    LABEL_GAP = 20  # px between the field and the texts either side of it
 
     def __init__(self):
-        self.population = evolve.DEFAULT_POPULATION
+        self.text = str(evolve.DEFAULT_POPULATION)
+        self.focused = False
         self.surface = pygame.Surface((engine.SCREEN_WIDTH, engine.WINDOW_HEIGHT))
         self.surface.fill(engine.BACKGROUND)
         middle = engine.WINDOW_HEIGHT // 2
@@ -65,40 +84,39 @@ class Menu:
             engine.draw_button(self.surface, button, label, self.font)
             self.buttons[label] = button
 
-        # The control's label, minus, the number and plus, in a row centered under the buttons.
+        # The field's label, the field and its range, in a row centered under the buttons.
         label_font = pygame.font.Font(None, self.LABEL_FONT_SIZE)
         label = label_font.render(POPULATION_LABEL, True, engine.BLACK)
-        row = label.get_width() + self.LABEL_GAP + 2 * self.STEPPER_SIZE + self.NUMBER_WIDTH
+        allowed = label_font.render(POPULATION_RANGE, True, engine.BLACK)
+        row = label.get_width() + allowed.get_width() + 2 * self.LABEL_GAP + self.FIELD_SIZE[0]
         rowy = middle + 150
         left = centerx - row // 2
-        # Set on the baseline that centers its capitals on the row, as the number's digits are.
+        # Set on the baseline that centers their capitals on the row, as the number's digits are.
         cap_height = label_font.metrics('H')[0][3]
-        self.surface.blit(label, (left, rowy + (cap_height + 1) // 2 - label_font.get_ascent()))
-        left += label.get_width() + self.LABEL_GAP
-        self.minus = pygame.Rect(left, 0, self.STEPPER_SIZE, self.STEPPER_SIZE)
-        self.number = pygame.Rect(self.minus.right, 0, self.NUMBER_WIDTH, self.STEPPER_SIZE)
-        self.plus = pygame.Rect(self.number.right, 0, self.STEPPER_SIZE, self.STEPPER_SIZE)
-        for rect in (self.minus, self.number, self.plus):
-            rect.centery = rowy
-        # Minus and plus are drawn as bars rather than set in the font, so they sit exactly centered.
-        across = pygame.Rect(0, 0, self.SIGN_SIZE, engine.WALL_THICKNESS)
-        down = pygame.Rect(0, 0, engine.WALL_THICKNESS, self.SIGN_SIZE)
-        for button, bars in ((self.minus, [across]), (self.plus, [across, down])):
-            engine.draw_button(self.surface, button)
-            for bar in bars:
-                bar.center = button.center
-                self.surface.fill(engine.BLACK, bar)
+        texty = rowy + (cap_height + 1) // 2 - label_font.get_ascent()
+        self.surface.blit(label, (left, texty))
+        self.field = pygame.Rect((left + label.get_width() + self.LABEL_GAP, 0), self.FIELD_SIZE)
+        self.field.centery = rowy
+        pygame.draw.rect(self.surface, engine.WHITE, self.field)
+        pygame.draw.rect(self.surface, engine.BLACK, self.field, engine.WALL_THICKNESS)
+        self.surface.blit(allowed, (self.field.right + self.LABEL_GAP, texty))
         self.surface = self.surface.convert()
 
+    @property
+    def population(self):
+        return population_from(self.text)
+
     def handle(self, event):
-        '''The option `event` left-clicks, or None; a left click on minus or
-        plus steps `population` down or up instead.'''
+        '''The option `event` chooses, or None, as the class says; a click or
+        key press that chooses none may focus, leave or type into the field.'''
+        if event.type == pygame.KEYDOWN and self.focused:
+            if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                return WATCH
+            self.text = type_into(self.text, event)
+            return None
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
             return None
-        if self.minus.collidepoint(event.pos):
-            self.population = step_population(self.population, -1)
-        elif self.plus.collidepoint(event.pos):
-            self.population = step_population(self.population, 1)
+        self.focused = self.field.collidepoint(event.pos)
         for label, button in self.buttons.items():
             if button.collidepoint(event.pos):
                 return label
@@ -110,11 +128,20 @@ class Menu:
     def draw(self, screen):
         screen.blit(self.surface, (0, 0))
         # Centered by its ink, as the digits all stand the same height on the baseline.
-        number = self.font.render(str(self.population), True, engine.BLACK)
+        number = self.font.render(self.text, True, engine.BLACK)
         ink = number.get_bounding_rect()
         placed = ink.copy()
-        placed.center = self.number.center
-        screen.blit(number, (placed.x - ink.x, placed.y - ink.y))
+        placed.center = self.field.center
+        if self.text:
+            screen.blit(number, (placed.x - ink.x, placed.y - ink.y))
+        if self.focused:
+            # A caret as tall as the digits, just after them, or centered in the empty field.
+            cap_height = self.font.metrics('0')[0][3]
+            caret = pygame.Rect(0, 0, self.CARET_WIDTH, cap_height)
+            caret.center = self.field.center
+            if self.text:
+                caret.left = placed.right + self.CARET_GAP
+            screen.fill(engine.BLACK, caret)
 
 
 class Game:
@@ -126,6 +153,9 @@ class Game:
     top bar; the menu, the win screen and the watch fill the window.
 
     `deaths` counts every death since Start game or Restart, across levels.
+
+    Esc in a level or on the win screen goes back to the menu, dropping the
+    game played so far: Start game from there plays level 1 afresh.
 
     Watch the AI beat the game starts a new `watch.Watch` training on `levels`
     from level 1, with the menu's population and the learner's other defaults,
@@ -160,7 +190,11 @@ class Game:
 
     def start_watch(self):
         '''Train the learner on every level, from level 1, on screen.'''
-        settings = evolve.Settings(population=self.menu.population)
+        population = self.menu.population
+        # Shown on the way back as it was watched, held in range, with the field left.
+        self.menu.text = str(population)
+        self.menu.focused = False
+        settings = evolve.Settings(population=population)
         seed = evolve.announce(self.levels, settings)
         self.watching = watch.Watch(self.levels, settings, seed, evolve.DEFAULT_GENERATIONS, menu=True)
         self.state = self.watching
@@ -174,6 +208,10 @@ class Game:
         if (self.dev and self.state is self.play
                 and event.type == pygame.KEYDOWN and event.key == pygame.K_t):
             self.toggle_god_mode()
+        elif (self.state in (self.play, self.won)
+              and event.type == pygame.KEYDOWN and event.key == watch.MENU_KEY):
+            self.play = None
+            self.state = self.menu
         elif self.state is self.menu:
             choice = self.menu.handle(event)
             if choice == START:
