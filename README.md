@@ -17,7 +17,7 @@ uv run worlds-easiest-game
 The game opens on a menu with two options
 
 1. Click `Start game` to play the game yourself (Move with WASD)
-2. `Watch the AI beat the game` to watch the learner train on every level (see [Watching it learn](#watching-it-learn))
+2. `Watch the AI beat the game` to watch the learner train on every level
 
 Press `Esc` in any level to go back to the menu  
 Press `Q` or close the window to quit
